@@ -54,283 +54,39 @@ namespace Chef_Middle_East_Form.Controllers
                     return View("LinkExpired");
                 }
 
-                string crmUrl = ConfigurationManager.AppSettings["CRMAppUrl"];
-                string clientId = ConfigurationManager.AppSettings["CRMClientId"];
-                string tenantId = ConfigurationManager.AppSettings["CRMTenantId"];
-                string clientSecret = ConfigurationManager.AppSettings["CRMClientSecret"];
-
-                // Validate configuration
-                if (string.IsNullOrEmpty(crmUrl) || string.IsNullOrEmpty(clientId) || 
-                    string.IsNullOrEmpty(tenantId) || string.IsNullOrEmpty(clientSecret))
+                // Validate CRM configuration
+                if (!ValidateCRMConfiguration())
                 {
-                    System.Diagnostics.Trace.WriteLine("Error: CRM configuration is incomplete");
                     return View("Error");
                 }
 
                 JObject accountData = null;
                 Form leadData = null;
 
-            if (!string.IsNullOrEmpty(leadId))
-            {
-                // Get Account by lead
-                accountData = await _crmService.GetAccountByLeadId(leadId);
-
-                // Get Lead data
-                leadData = await _crmService.GetLeadData(leadId);
-                if (leadData?.EmailSenton != null)
+                if (!string.IsNullOrEmpty(leadId))
                 {
-                    DateTime expiryTime = leadData.EmailSenton.AddHours(48);
+                    // Get Account by lead
+                    accountData = await _crmService.GetAccountByLeadId(leadId);
 
-                    if (DateTime.UtcNow > expiryTime)
+                    // Get Lead data
+                    leadData = await _crmService.GetLeadData(leadId);
+                    
+                    // Check link expiry
+                    if (IsLinkExpired(leadData))
                     {
                         return View("LinkExpired");
                     }
-                }
 
-                // Use Lead data as fallback if Account data is unavailable
-                form.CompanyName = leadData?.CompanyName;
-                form.MainPhone = leadData?.MainPhone;
-                form.Email = leadData?.Email;
-                form.LeadId = leadId;
-                form.StatisticGroup = leadData?.StatisticGroup;
-                form.ChefSegment = leadData?.ChefSegment;
-                form.SubSegment = leadData?.SubSegment;
-                form.Branch = leadData?.Branch;
-                form.Classification = leadData?.Classification;
-                form.CorporateCustomerName = leadData?.CompanyName;
-                form.DeliveryCustomerName = leadData?.CompanyName;
-                form.RegisteredCustomerName = leadData?.CompanyName;
-                form.Ecomerce = leadData?.Ecomerce;
-                form.Reason = leadData?.Reason;
-                form.InventorySystem = leadData?.InventorySystem;
-                form.StatusCode = leadData?.StatusCode;
+                    // Populate form with lead data
+                    PopulateFormWithLeadData(form, leadData, leadId);
 
-                if (accountData != null)
-                {
-                    if (!string.IsNullOrWhiteSpace(accountData["name"]?.ToString()))
+                    // Populate form with account data if available
+                    if (accountData != null)
                     {
-                        form.CompanyName = accountData["name"].ToString();
-                        form.CorporateCustomerName = accountData["name"].ToString();
-                        form.DeliveryCustomerName = accountData["name"].ToString();
-                        form.RegisteredCustomerName = accountData["name"].ToString();
+                        PopulateFormWithAccountData(form, accountData);
                     }
-
-                    if (!string.IsNullOrWhiteSpace(accountData["telephone1"]?.ToString()))
-                        form.MainPhone = accountData["telephone1"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["emailaddress1"]?.ToString()))
-                        form.Email = accountData["emailaddress1"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["_msdyn_customerpaymentmethod_value@OData.Community.Display.V1.FormattedValue"]?.ToString()))
-                        form.CustomerPaymentMethod = accountData["_msdyn_customerpaymentmethod_value@OData.Community.Display.V1.FormattedValue"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["_nw_statisticgroup_value@OData.Community.Display.V1.FormattedValue"]?.ToString()))
-                        form.StatisticGroup = accountData["_nw_statisticgroup_value@OData.Community.Display.V1.FormattedValue"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["_nw_chefsegments_value@OData.Community.Display.V1.FormattedValue"]?.ToString()))
-                        form.ChefSegment = accountData["_nw_chefsegments_value@OData.Community.Display.V1.FormattedValue"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["_nw_subsegment_value@OData.Community.Display.V1.FormattedValue"]?.ToString()))
-                        form.SubSegment = accountData["_nw_subsegment_value@OData.Community.Display.V1.FormattedValue"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["_msdyn_company_value@OData.Community.Display.V1.FormattedValue"]?.ToString()))
-                        form.Branch = accountData["_msdyn_company_value@OData.Community.Display.V1.FormattedValue"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["_shp_classification_value@OData.Community.Display.V1.FormattedValue"]?.ToString()))
-                        form.Classification = accountData["_shp_classification_value@OData.Community.Display.V1.FormattedValue"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["paymenttermscode@OData.Community.Display.V1.FormattedValue"]?.ToString()))
-                        form.PaymentTerms = accountData["paymenttermscode@OData.Community.Display.V1.FormattedValue"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["_nw_country11_name"]?.ToString()))
-                        form.CorporateCountry = accountData["_nw_country11_name"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["_nw_city_name"]?.ToString()))
-                        form.CorporateCity = accountData["_nw_city_name"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["_nw_deliverycountry_name"]?.ToString()))
-                        form.DeliveryCountry = accountData["_nw_deliverycountry_name"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["_nw_deliverycity_name"]?.ToString()))
-                        form.DeliveryCity = accountData["_nw_deliverycity_name"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["_nw_countries_name"]?.ToString()))
-                        form.RegisteredCountry = accountData["_nw_countries_name"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["_nw_cityregisteredaddress_name"]?.ToString()))
-                        form.RegisteredCity = accountData["_nw_cityregisteredaddress_name"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["address1_line1"]?.ToString()))
-                        form.CorporateStreet = accountData["address1_line1"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["shippingmethodcode"]?.ToString()))
-                        form.CorporateShippingMethod = accountData["shippingmethodcode"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["address2_line1"]?.ToString()))
-                        form.DeliveryStreet = accountData["address2_line1"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["address2_shippingmethodcode"]?.ToString()))
-                        form.DeliveryShippingMethod = accountData["address2_shippingmethodcode"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["nw_address3street"]?.ToString()))
-                        form.RegisteredStreet = accountData["nw_address3street"].ToString();
-
-                    if (accountData["nw_proposecreditlimit"] != null)
-                        form.CreditLimit = accountData["nw_proposecreditlimit"].ToObject<bool>();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["nw_proposecreditlimit1"]?.ToString()))
-                        form.RequestedCreditLimit = accountData["nw_proposecreditlimit1"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["nw_estimatedpurchasevalue"]?.ToString()))
-                        form.EstimatedPurchaseValue = accountData["nw_estimatedpurchasevalue"].ToString();
-
-                    if (accountData["nw_amountofsecuritychequeamountaed"] != null &&
-                        decimal.TryParse(accountData["nw_amountofsecuritychequeamountaed"].ToString(), out var securityChequeAmt))
-                        form.SecurityChequeAmount = securityChequeAmt;
-
-                    if (accountData["nw_estimatedmonthlypurchaseaed"] != null &&
-                        decimal.TryParse(accountData["nw_estimatedmonthlypurchaseaed"].ToString(), out var monthlyPurchase))
-                        form.EstimatedMonthlyPurchase = monthlyPurchase;
-
-                    if (!string.IsNullOrWhiteSpace(accountData["nw_tradenameoutletname"]?.ToString()))
-                        form.TradeName = accountData["nw_tradenameoutletname"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["nw_tradelicensenumber"]?.ToString()))
-                        form.TradeLicenseNumber = accountData["nw_tradelicensenumber"].ToString();
-
-                    if (accountData["nw_licenseexpirydate"] != null &&
-                        DateTime.TryParse(accountData["nw_licenseexpirydate"].ToString(), out var licenseExpiry))
-                        form.LicenseExpiryDate = licenseExpiry;
-
-                    if (!string.IsNullOrWhiteSpace(accountData["nw_vatnumber"]?.ToString()))
-                        form.VatNumber = accountData["nw_vatnumber"].ToString();
-
-                    // Boolean dropdowns
-                    if (accountData["nw_iscontactpersonsameaspurchasing"] != null)
-                        form.IsContactPersonSameAsPurchasing = (accountData["nw_iscontactpersonsameaspurchasing"].ToObject<bool>()) ? "1" : "0";
-
-                    if (accountData["nw_scontactpersonsameascompanyowner"] != null)
-                        form.IsContactPersonSameAsCompanyOwner = (accountData["nw_scontactpersonsameascompanyowner"].ToObject<bool>()) ? "1" : "0";
-
-                    if (accountData["nw_issametocorporateaddress"] != null)
-                        form.IsSameAsCorporateAddress = (accountData["nw_issametocorporateaddress"].ToObject<bool>()) ? "1" : "0";
-
-                    // Bank Account Details
-                    if (!string.IsNullOrWhiteSpace(accountData["bankAccount_nw_name"]?.ToString()))
-                        form.IBNAccountNumber = accountData["bankAccount_nw_name"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["bankAccount_nw_bankname"]?.ToString()))
-                        form.BankName = accountData["bankAccount_nw_bankname"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["bankAccount_nw_ibannumber"]?.ToString()))
-                        form.IbanNumber = accountData["bankAccount_nw_ibannumber"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["bankAccount_nw_swiftcode"]?.ToString()))
-                        form.SwiftCode = accountData["bankAccount_nw_swiftcode"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["bankAccount_nw_bankaddress"]?.ToString()))
-                        form.BankAddress = accountData["bankAccount_nw_bankaddress"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["bankAccount_nw_bank"]?.ToString()))
-                        form.Bank = accountData["bankAccount_nw_bank"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["nw_proposedpaymentterms"]?.ToString()))
-                        form.ProposedPaymentTerms = accountData["nw_proposedpaymentterms"].ToString();
-
-                    // File Attachments
-                    string accountID = accountData["accountid"]?.ToString() ?? string.Empty;
-                    form.ChequeCopyFileData = GetFileFromUploadFolder($"checkCopy_{accountID}.pdf");
-                    form.ChequeCopyFileName = "ChequeCopy.pdf"; // _crmService.GetUploadedFileNameByService(accountID, accountData["nw_checkcopy"].ToString()); //"ChequeCopy.pdf";
-
-                    form.VatCertificateFileData = GetFileFromUploadFolder($"vatCertificate_{accountID}.pdf");
-                    form.VatCertificateFileName = "VATCertificate.pdf";//_crmService.GetUploadedFileNameByService(accountID, accountData["nw_vattrnattachcertificate"].ToString()); //"VATCertificate.pdf";
-
-                    form.TradeLicenseFileData = GetFileFromUploadFolder($"tradeLicense_{accountID}.pdf");
-                    form.TradeLicenseFileName = "TradeLicense.pdf";// _crmService.GetUploadedFileNameByService(accountID, accountData["nw_tradecommerciallicensenoattachlicense"].ToString()); //"TradeLicense.pdf";
-
-                    form.POAFileData = GetFileFromUploadFolder($"powerOfAttorney_{accountID}.pdf");
-                    form.POAFileName = "POA.pdf"; // _crmService.GetUploadedFileNameByService(accountID, accountData["nw_powerofattorney"].ToString()); //"POA.pdf";
-
-                    form.PassportFileData = GetFileFromUploadFolder($"passport_{accountID}.pdf");
-                    form.PassportFileName = "Passport.pdf"; //_crmService.GetUploadedFileNameByService(accountID, accountData["nw_passport"].ToString()); //""Passport.pdf";
-
-                    form.VisaFileData = GetFileFromUploadFolder($"visa_{accountID}.pdf");
-                    form.VisaFileName = "Visa.pdf";// _crmService.GetUploadedFileNameByService(accountID, accountData["nw_visa"].ToString()); //"Visa.pdf";
-
-                    form.EIDFileData = GetFileFromUploadFolder($"emiratesId_{accountID}.pdf");
-                    form.EIDFileName = "NationalID.pdf"; // _crmService.GetUploadedFileNameByService(accountID, accountData["nw_emiratesidcard"].ToString()); //"NationalID.pdf";
-
-                    form.AccountOpeningFileData = GetFileFromUploadFolder($"accountOpeningFile_{accountID}.pdf");
-                    form.AccountOpeningFileName = "AccountOpeningFile.pdf";
-
-                    form.EstablishmentCardFileData = GetFileFromUploadFolder($"EstablishmentCardCopy_{accountID}.pdf");
-                    form.EstablishmentCardFileName = "EstablishmentCardCopy.pdf"; //_crmService.GetUploadedFileNameByService(accountID, accountData["nw_establishmentcardcopy"].ToString()); //"EstablishmentCardCopy.pdf";
-
-                    // Person in Charge
-                    if (!string.IsNullOrWhiteSpace(accountData["primaryContact_firstname"]?.ToString()))
-                        form.PersonInChargeFirstName = accountData["primaryContact_firstname"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["primaryContact_lastname"]?.ToString()))
-                        form.PersonInChargeLastName = accountData["primaryContact_lastname"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["primaryContact_emailaddress1"]?.ToString()))
-                        form.PersonInChargeEmailID = accountData["primaryContact_emailaddress1"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["primaryContact_mobilephone"]?.ToString()))
-                        form.PersonInChargePhoneNumber = accountData["primaryContact_mobilephone"].ToString();
-
-                    // Company Owner
-                    if (!string.IsNullOrWhiteSpace(accountData["owner_firstname"]?.ToString()))
-                        form.CompanyOwnerFirstName = accountData["owner_firstname"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["owner_lastname"]?.ToString()))
-                        form.CompanyOwnerLastName = accountData["owner_lastname"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["owner_emailaddress1"]?.ToString()))
-                        form.CompanyOwnerEmailID = accountData["owner_emailaddress1"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["owner_mobilephone"]?.ToString()))
-                        form.CompanyOwnerPhoneNumber = accountData["owner_mobilephone"].ToString();
-
-                    // Purchasing Person
-                    if (!string.IsNullOrWhiteSpace(accountData["purchasingPerson_firstname"]?.ToString()))
-                        form.PurchasingPersonFirstName = accountData["purchasingPerson_firstname"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["purchasingPerson_lastname"]?.ToString()))
-                        form.PurchasingPersonLastName = accountData["purchasingPerson_lastname"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["purchasingPerson_emailaddress1"]?.ToString()))
-                        form.PurchasingPersonEmailID = accountData["purchasingPerson_emailaddress1"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["purchasingPerson_mobilephone"]?.ToString()))
-                        form.PurchasingPersonPhoneNumber = accountData["purchasingPerson_mobilephone"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["nw_establishmentcardnumber"]?.ToString()))
-                        form.EstablishmentCardNumber = accountData["nw_establishmentcardnumber"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["primaryContact_mobilephone"]?.ToString()))
-                        form.PersonInChargePhoneNumber = accountData["primaryContact_mobilephone"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["owner_mobilephone"]?.ToString()))
-                        form.CompanyOwnerPhoneNumber = accountData["owner_mobilephone"].ToString();
-
-                    if (!string.IsNullOrWhiteSpace(accountData["purchasingPerson_mobilephone"]?.ToString()))
-                        form.PurchasingPersonPhoneNumber = accountData["purchasingPerson_mobilephone"].ToString();
-                    // ✅ Person in Charge Role
-                    if (!string.IsNullOrWhiteSpace(accountData["primaryContact_nw_rule"]?.ToString()))
-                        form.PersonInChargeRole = accountData["primaryContact_nw_rule"].ToString();
-
-                    // ✅ Purchasing Person Role
-                    if (!string.IsNullOrWhiteSpace(accountData["purchasingPerson_nw_rule"]?.ToString()))
-                        form.PurchasingPersonRole = accountData["purchasingPerson_nw_rule"].ToString();
-
-                    // ✅ Company Owner Role
-                    if (!string.IsNullOrWhiteSpace(accountData["owner_nw_rule"]?.ToString()))
-                        form.CompanyOwnerRole = accountData["owner_nw_rule"].ToString();
-
-
                 }
-            }
+
                 return View(form);
             }
             catch (Exception ex)
@@ -340,25 +96,501 @@ namespace Chef_Middle_East_Form.Controllers
                 return View("Error");
             }
         }
-        private byte[] GetFileFromUploadFolder(string fileName)
+
+        /// <summary>
+        /// Validates that all required CRM configuration settings are present
+        /// </summary>
+        /// <returns>True if configuration is valid, false otherwise</returns>
+        private bool ValidateCRMConfiguration()
         {
-            var uploadFolder = HttpContext.Server.MapPath("~/App_Data/uploads");
-            var filePath = Path.Combine(uploadFolder, fileName);
+            string crmUrl = ConfigurationManager.AppSettings["CRMAppUrl"];
+            string clientId = ConfigurationManager.AppSettings["CRMClientId"];
+            string tenantId = ConfigurationManager.AppSettings["CRMTenantId"];
+            string clientSecret = ConfigurationManager.AppSettings["CRMClientSecret"];
 
-            if (System.IO.File.Exists(filePath))
+            if (string.IsNullOrEmpty(crmUrl) || string.IsNullOrEmpty(clientId) || 
+                string.IsNullOrEmpty(tenantId) || string.IsNullOrEmpty(clientSecret))
             {
-                return System.IO.File.ReadAllBytes(filePath);  // Return the file as a byte array
+                System.Diagnostics.Trace.WriteLine("Error: CRM configuration is incomplete");
+                return false;
             }
-
-            return null;  // Return null if the file does not exist
+            return true;
         }
 
+        /// <summary>
+        /// Checks if the lead link has expired (48 hours from email sent)
+        /// </summary>
+        /// <param name="leadData">The lead data containing email sent timestamp</param>
+        /// <returns>True if link is expired, false otherwise</returns>
+        private bool IsLinkExpired(Form leadData)
+        {
+            if (leadData?.EmailSenton != null)
+            {
+                DateTime expiryTime = leadData.EmailSenton.AddHours(48);
+                return DateTime.UtcNow > expiryTime;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Populates the form with basic lead data
+        /// </summary>
+        /// <param name="form">The form to populate</param>
+        /// <param name="leadData">The lead data</param>
+        /// <param name="leadId">The lead ID</param>
+        private void PopulateFormWithLeadData(Form form, Form leadData, string leadId)
+        {
+            if (leadData == null) return;
+
+            form.CompanyName = leadData.CompanyName;
+            form.MainPhone = leadData.MainPhone;
+            form.Email = leadData.Email;
+            form.LeadId = leadId;
+            form.StatisticGroup = leadData.StatisticGroup;
+            form.ChefSegment = leadData.ChefSegment;
+            form.SubSegment = leadData.SubSegment;
+            form.Branch = leadData.Branch;
+            form.Classification = leadData.Classification;
+            form.CorporateCustomerName = leadData.CompanyName;
+            form.DeliveryCustomerName = leadData.CompanyName;
+            form.RegisteredCustomerName = leadData.CompanyName;
+            form.Ecomerce = leadData.Ecomerce;
+            form.Reason = leadData.Reason;
+            form.InventorySystem = leadData.InventorySystem;
+            form.StatusCode = leadData.StatusCode;
+        }
+
+        /// <summary>
+        /// Populates the form with account data from CRM
+        /// </summary>
+        /// <param name="form">The form to populate</param>
+        /// <param name="accountData">The account data from CRM</param>
+        private void PopulateFormWithAccountData(Form form, JObject accountData)
+        {
+            if (accountData == null) return;
+
+            PopulateBasicCompanyInfo(form, accountData);
+            PopulateAddressInformation(form, accountData);
+            PopulateFinancialInformation(form, accountData);
+            PopulateBusinessInformation(form, accountData);
+            PopulateBankInformation(form, accountData);
+            PopulateFileAttachments(form, accountData);
+            PopulateContactInformation(form, accountData);
+        }
+
+        /// <summary>
+        /// Populates basic company information from account data
+        /// </summary>
+        private void PopulateBasicCompanyInfo(Form form, JObject accountData)
+        {
+            if (!string.IsNullOrWhiteSpace(accountData["name"]?.ToString()))
+            {
+                form.CompanyName = accountData["name"].ToString();
+                form.CorporateCustomerName = accountData["name"].ToString();
+                form.DeliveryCustomerName = accountData["name"].ToString();
+                form.RegisteredCustomerName = accountData["name"].ToString();
+            }
+
+            if (!string.IsNullOrWhiteSpace(accountData["telephone1"]?.ToString()))
+                form.MainPhone = accountData["telephone1"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["emailaddress1"]?.ToString()))
+                form.Email = accountData["emailaddress1"].ToString();
+        }
+
+        /// <summary>
+        /// Populates address information from account data
+        /// </summary>
+        private void PopulateAddressInformation(Form form, JObject accountData)
+        {
+            // Corporate Address
+            if (!string.IsNullOrWhiteSpace(accountData["_nw_country11_name"]?.ToString()))
+                form.CorporateCountry = accountData["_nw_country11_name"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["_nw_city_name"]?.ToString()))
+                form.CorporateCity = accountData["_nw_city_name"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["address1_line1"]?.ToString()))
+                form.CorporateStreet = accountData["address1_line1"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["shippingmethodcode"]?.ToString()))
+                form.CorporateShippingMethod = accountData["shippingmethodcode"].ToString();
+
+            // Delivery Address
+            if (!string.IsNullOrWhiteSpace(accountData["_nw_deliverycountry_name"]?.ToString()))
+                form.DeliveryCountry = accountData["_nw_deliverycountry_name"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["_nw_deliverycity_name"]?.ToString()))
+                form.DeliveryCity = accountData["_nw_deliverycity_name"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["address2_line1"]?.ToString()))
+                form.DeliveryStreet = accountData["address2_line1"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["address2_shippingmethodcode"]?.ToString()))
+                form.DeliveryShippingMethod = accountData["address2_shippingmethodcode"].ToString();
+
+            // Registered Address
+            if (!string.IsNullOrWhiteSpace(accountData["_nw_countries_name"]?.ToString()))
+                form.RegisteredCountry = accountData["_nw_countries_name"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["_nw_cityregisteredaddress_name"]?.ToString()))
+                form.RegisteredCity = accountData["_nw_cityregisteredaddress_name"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["nw_address3street"]?.ToString()))
+                form.RegisteredStreet = accountData["nw_address3street"].ToString();
+        }
+
+        /// <summary>
+        /// Populates financial information from account data
+        /// </summary>
+        private void PopulateFinancialInformation(Form form, JObject accountData)
+        {
+            if (accountData["nw_proposecreditlimit"] != null)
+                form.CreditLimit = accountData["nw_proposecreditlimit"].ToObject<bool>();
+
+            if (!string.IsNullOrWhiteSpace(accountData["nw_proposecreditlimit1"]?.ToString()))
+                form.RequestedCreditLimit = accountData["nw_proposecreditlimit1"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["nw_estimatedpurchasevalue"]?.ToString()))
+                form.EstimatedPurchaseValue = accountData["nw_estimatedpurchasevalue"].ToString();
+
+            if (accountData["nw_amountofsecuritychequeamountaed"] != null &&
+                decimal.TryParse(accountData["nw_amountofsecuritychequeamountaed"].ToString(), out var securityChequeAmt))
+                form.SecurityChequeAmount = securityChequeAmt;
+
+            if (accountData["nw_estimatedmonthlypurchaseaed"] != null &&
+                decimal.TryParse(accountData["nw_estimatedmonthlypurchaseaed"].ToString(), out var monthlyPurchase))
+                form.EstimatedMonthlyPurchase = monthlyPurchase;
+
+            if (!string.IsNullOrWhiteSpace(accountData["nw_proposedpaymentterms"]?.ToString()))
+                form.ProposedPaymentTerms = accountData["nw_proposedpaymentterms"].ToString();
+        }
+
+        /// <summary>
+        /// Populates business information from account data
+        /// </summary>
+        private void PopulateBusinessInformation(Form form, JObject accountData)
+        {
+            if (!string.IsNullOrWhiteSpace(accountData["_msdyn_customerpaymentmethod_value@OData.Community.Display.V1.FormattedValue"]?.ToString()))
+                form.CustomerPaymentMethod = accountData["_msdyn_customerpaymentmethod_value@OData.Community.Display.V1.FormattedValue"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["_nw_statisticgroup_value@OData.Community.Display.V1.FormattedValue"]?.ToString()))
+                form.StatisticGroup = accountData["_nw_statisticgroup_value@OData.Community.Display.V1.FormattedValue"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["_nw_chefsegments_value@OData.Community.Display.V1.FormattedValue"]?.ToString()))
+                form.ChefSegment = accountData["_nw_chefsegments_value@OData.Community.Display.V1.FormattedValue"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["_nw_subsegment_value@OData.Community.Display.V1.FormattedValue"]?.ToString()))
+                form.SubSegment = accountData["_nw_subsegment_value@OData.Community.Display.V1.FormattedValue"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["_msdyn_company_value@OData.Community.Display.V1.FormattedValue"]?.ToString()))
+                form.Branch = accountData["_msdyn_company_value@OData.Community.Display.V1.FormattedValue"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["_shp_classification_value@OData.Community.Display.V1.FormattedValue"]?.ToString()))
+                form.Classification = accountData["_shp_classification_value@OData.Community.Display.V1.FormattedValue"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["paymenttermscode@OData.Community.Display.V1.FormattedValue"]?.ToString()))
+                form.PaymentTerms = accountData["paymenttermscode@OData.Community.Display.V1.FormattedValue"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["nw_tradenameoutletname"]?.ToString()))
+                form.TradeName = accountData["nw_tradenameoutletname"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["nw_tradelicensenumber"]?.ToString()))
+                form.TradeLicenseNumber = accountData["nw_tradelicensenumber"].ToString();
+
+            if (accountData["nw_licenseexpirydate"] != null &&
+                DateTime.TryParse(accountData["nw_licenseexpirydate"].ToString(), out var licenseExpiry))
+                form.LicenseExpiryDate = licenseExpiry;
+
+            if (!string.IsNullOrWhiteSpace(accountData["nw_vatnumber"]?.ToString()))
+                form.VatNumber = accountData["nw_vatnumber"].ToString();
+
+            // Boolean dropdowns
+            if (accountData["nw_iscontactpersonsameaspurchasing"] != null)
+                form.IsContactPersonSameAsPurchasing = (accountData["nw_iscontactpersonsameaspurchasing"].ToObject<bool>()) ? "1" : "0";
+
+            if (accountData["nw_scontactpersonsameascompanyowner"] != null)
+                form.IsContactPersonSameAsCompanyOwner = (accountData["nw_scontactpersonsameascompanyowner"].ToObject<bool>()) ? "1" : "0";
+
+            if (accountData["nw_issametocorporateaddress"] != null)
+                form.IsSameAsCorporateAddress = (accountData["nw_issametocorporateaddress"].ToObject<bool>()) ? "1" : "0";
+        }
+
+        /// <summary>
+        /// Populates bank information from account data
+        /// </summary>
+        private void PopulateBankInformation(Form form, JObject accountData)
+        {
+            if (!string.IsNullOrWhiteSpace(accountData["bankAccount_nw_name"]?.ToString()))
+                form.IBNAccountNumber = accountData["bankAccount_nw_name"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["bankAccount_nw_bankname"]?.ToString()))
+                form.BankName = accountData["bankAccount_nw_bankname"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["bankAccount_nw_ibannumber"]?.ToString()))
+                form.IbanNumber = accountData["bankAccount_nw_ibannumber"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["bankAccount_nw_swiftcode"]?.ToString()))
+                form.SwiftCode = accountData["bankAccount_nw_swiftcode"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["bankAccount_nw_bankaddress"]?.ToString()))
+                form.BankAddress = accountData["bankAccount_nw_bankaddress"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["bankAccount_nw_bank"]?.ToString()))
+                form.Bank = accountData["bankAccount_nw_bank"].ToString();
+        }
+
+        /// <summary>
+        /// Populates file attachments from account data
+        /// </summary>
+        private void PopulateFileAttachments(Form form, JObject accountData)
+        {
+            string accountID = accountData["accountid"]?.ToString() ?? string.Empty;
+            
+            form.ChequeCopyFileData = GetFileFromUploadFolder($"checkCopy_{accountID}.pdf");
+            form.ChequeCopyFileName = "ChequeCopy.pdf";
+
+            form.VatCertificateFileData = GetFileFromUploadFolder($"vatCertificate_{accountID}.pdf");
+            form.VatCertificateFileName = "VATCertificate.pdf";
+
+            form.TradeLicenseFileData = GetFileFromUploadFolder($"tradeLicense_{accountID}.pdf");
+            form.TradeLicenseFileName = "TradeLicense.pdf";
+
+            form.POAFileData = GetFileFromUploadFolder($"powerOfAttorney_{accountID}.pdf");
+            form.POAFileName = "POA.pdf";
+
+            form.PassportFileData = GetFileFromUploadFolder($"passport_{accountID}.pdf");
+            form.PassportFileName = "Passport.pdf";
+
+            form.VisaFileData = GetFileFromUploadFolder($"visa_{accountID}.pdf");
+            form.VisaFileName = "Visa.pdf";
+
+            form.EIDFileData = GetFileFromUploadFolder($"emiratesId_{accountID}.pdf");
+            form.EIDFileName = "NationalID.pdf";
+
+            form.AccountOpeningFileData = GetFileFromUploadFolder($"accountOpeningFile_{accountID}.pdf");
+            form.AccountOpeningFileName = "AccountOpeningFile.pdf";
+
+            form.EstablishmentCardFileData = GetFileFromUploadFolder($"EstablishmentCardCopy_{accountID}.pdf");
+            form.EstablishmentCardFileName = "EstablishmentCardCopy.pdf";
+        }
+
+        /// <summary>
+        /// Populates contact information from account data
+        /// </summary>
+        private void PopulateContactInformation(Form form, JObject accountData)
+        {
+            // Person in Charge
+            if (!string.IsNullOrWhiteSpace(accountData["primaryContact_firstname"]?.ToString()))
+                form.PersonInChargeFirstName = accountData["primaryContact_firstname"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["primaryContact_lastname"]?.ToString()))
+                form.PersonInChargeLastName = accountData["primaryContact_lastname"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["primaryContact_emailaddress1"]?.ToString()))
+                form.PersonInChargeEmailID = accountData["primaryContact_emailaddress1"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["primaryContact_mobilephone"]?.ToString()))
+                form.PersonInChargePhoneNumber = accountData["primaryContact_mobilephone"].ToString();
+
+            // Company Owner
+            if (!string.IsNullOrWhiteSpace(accountData["owner_firstname"]?.ToString()))
+                form.CompanyOwnerFirstName = accountData["owner_firstname"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["owner_lastname"]?.ToString()))
+                form.CompanyOwnerLastName = accountData["owner_lastname"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["owner_emailaddress1"]?.ToString()))
+                form.CompanyOwnerEmailID = accountData["owner_emailaddress1"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["owner_mobilephone"]?.ToString()))
+                form.CompanyOwnerPhoneNumber = accountData["owner_mobilephone"].ToString();
+
+            // Purchasing Person
+            if (!string.IsNullOrWhiteSpace(accountData["purchasingPerson_firstname"]?.ToString()))
+                form.PurchasingPersonFirstName = accountData["purchasingPerson_firstname"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["purchasingPerson_lastname"]?.ToString()))
+                form.PurchasingPersonLastName = accountData["purchasingPerson_lastname"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["purchasingPerson_emailaddress1"]?.ToString()))
+                form.PurchasingPersonEmailID = accountData["purchasingPerson_emailaddress1"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["purchasingPerson_mobilephone"]?.ToString()))
+                form.PurchasingPersonPhoneNumber = accountData["purchasingPerson_mobilephone"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["nw_establishmentcardnumber"]?.ToString()))
+                form.EstablishmentCardNumber = accountData["nw_establishmentcardnumber"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["primaryContact_mobilephone"]?.ToString()))
+                form.PersonInChargePhoneNumber = accountData["primaryContact_mobilephone"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["owner_mobilephone"]?.ToString()))
+                form.CompanyOwnerPhoneNumber = accountData["owner_mobilephone"].ToString();
+
+            if (!string.IsNullOrWhiteSpace(accountData["purchasingPerson_mobilephone"]?.ToString()))
+                form.PurchasingPersonPhoneNumber = accountData["purchasingPerson_mobilephone"].ToString();
+            // ✅ Person in Charge Role
+            if (!string.IsNullOrWhiteSpace(accountData["primaryContact_nw_rule"]?.ToString()))
+                form.PersonInChargeRole = accountData["primaryContact_nw_rule"].ToString();
+
+            // ✅ Purchasing Person Role
+            if (!string.IsNullOrWhiteSpace(accountData["purchasingPerson_nw_rule"]?.ToString()))
+                form.PurchasingPersonRole = accountData["purchasingPerson_nw_rule"].ToString();
+
+            // ✅ Company Owner Role
+            if (!string.IsNullOrWhiteSpace(accountData["owner_nw_rule"]?.ToString()))
+                form.CompanyOwnerRole = accountData["owner_nw_rule"].ToString();
+
+
+        }
+        /// <summary>
+        /// Retrieves a file from the upload folder with proper resource management
+        /// </summary>
+        /// <param name="fileName">Name of the file to retrieve</param>
+        /// <returns>File content as byte array, or null if file doesn't exist or error occurs</returns>
+        private byte[] GetFileFromUploadFolder(string fileName)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(fileName))
+                {
+                    System.Diagnostics.Trace.WriteLine("Warning: GetFileFromUploadFolder called with null or empty fileName");
+                    return null;
+                }
+
+                var uploadFolder = HttpContext.Server.MapPath("~/App_Data/uploads");
+                var filePath = Path.Combine(uploadFolder, fileName);
+
+                // Validate file path to prevent directory traversal attacks
+                if (!IsValidFilePath(filePath, uploadFolder))
+                {
+                    System.Diagnostics.Trace.WriteLine($"Warning: Invalid file path detected: {filePath}");
+                    return null;
+                }
+
+                if (System.IO.File.Exists(filePath))
+                {
+                    using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (var memoryStream = new MemoryStream())
+                    {
+                        fileStream.CopyTo(memoryStream);
+                        return memoryStream.ToArray();
+                    }
+                }
+
+                return null; // File doesn't exist
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"Error in GetFileFromUploadFolder for file {fileName}: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Validates that the file path is within the allowed upload directory
+        /// </summary>
+        /// <param name="filePath">The file path to validate</param>
+        /// <param name="uploadFolder">The allowed upload folder</param>
+        /// <returns>True if the path is valid, false otherwise</returns>
+        private bool IsValidFilePath(string filePath, string uploadFolder)
+        {
+            try
+            {
+                var fullPath = Path.GetFullPath(filePath);
+                var uploadFullPath = Path.GetFullPath(uploadFolder);
+                return fullPath.StartsWith(uploadFullPath, StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
 
         // POST: Form/Create - Submits form and redirects to Thank You page
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> Create(Form form, string action)
+        {
+            try
+            {
+                // Map uploaded files
+                MapUploadedFiles(form);
+
+                // Validate form data
+                if (!ValidateFormData(form))
+                {
+                    return View(form);
+                }
+
+                // Check if ModelState is valid
+                if (ModelState.IsValid)
+                {
+                    // Save files to the server with proper error handling
+                    var fileResults = await SaveAllFiles(form);
+                    
+                    if (!fileResults.Success)
+                    {
+                        ModelState.AddModelError("", fileResults.ErrorMessage);
+                        return View(form);
+                    }
+
+                    bool accountUpdatedOrCreated = false;
+
+                    // Process based on action type
+                    if (action == "Save")
+                    {
+                        accountUpdatedOrCreated = await ProcessSaveAction(form, fileResults);
+                    }
+                    else if (action == "Submit")
+                    {
+                        accountUpdatedOrCreated = await ProcessSubmitAction(form, fileResults);
+                    }
+                    else
+                    {
+                        ModelState.AddModelError("", "Invalid action specified");
+                        return View(form);
+                    }
+
+                    // Handle success
+                    if (accountUpdatedOrCreated)
+                    {
+                        if (action == "Submit")
+                        {
+                            Session["SubmittedForm"] = form;
+                            return RedirectToAction("Thankyou");
+                        }
+                        else
+                        {
+                            TempData["SuccessMessage"] = "Form saved successfully!";
+                            return View(form);
+                        }
+                    }
+                    else
+                    {
+                        ModelState.AddModelError("", "Failed to save/update account. Please try again.");
+                        return View(form);
+                    }
+                }
+
+                return View(form);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"Error in Form/Create POST: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"Stack trace: {ex.StackTrace}");
+                ModelState.AddModelError("", "An unexpected error occurred. Please try again.");
+                return View(form);
+            }
+        }
+
+        /// <summary>
+        /// Maps uploaded files from Request.Files to form properties
+        /// </summary>
+        /// <param name="form">The form to populate with files</param>
+        private void MapUploadedFiles(Form form)
         {
             form.POA = Request.Files["POA"];
             form.Passport = Request.Files["Passport"];
@@ -368,210 +600,206 @@ namespace Chef_Middle_East_Form.Controllers
             form.ChequeCopy = Request.Files["ChequeCopy"];
             form.VatCertificate = Request.Files["VatCertificate"];
             form.TradeLicense = Request.Files["TradeLicense"];
-            form.EstablishmentCardCopy= Request.Files["EstablishmentCardCopy"];
+            form.EstablishmentCardCopy = Request.Files["EstablishmentCardCopy"];
+        }
 
-
-            //// Debug log to check the received files
-            //System.Diagnostics.Trace.WriteLine("===== Received Files After Mapping =====");
-            //System.Diagnostics.Trace.WriteLine($"POA: {form.POA?.FileName ?? "NULL"}");
-            //System.Diagnostics.Trace.WriteLine($"Passport: {form.Passport?.FileName ?? "NULL"}");
-            //System.Diagnostics.Trace.WriteLine($"Visa: {form.Visa?.FileName ?? "NULL"}");
-            //System.Diagnostics.Trace.WriteLine($"EID: {form.EID?.FileName ?? "NULL"}");
-            //System.Diagnostics.Trace.WriteLine($"Account Opening File: {form.AccountOpeningFile?.FileName ?? "NULL"}");
-            //System.Diagnostics.Trace.WriteLine($"Cheque Copy: {form.ChequeCopy?.FileName ?? "NULL"}");
-            //System.Diagnostics.Trace.WriteLine($"Establoshment Card Copy: {form.EstablishmentCardCopy?.FileName ?? "NULL"}");
-            //System.Diagnostics.Trace.WriteLine("========================================");
-
-            // Check if ModelState is valid
-            if (ModelState.IsValid)
+        /// <summary>
+        /// Validates form data before processing
+        /// </summary>
+        /// <param name="form">The form to validate</param>
+        /// <returns>True if validation passes, false otherwise</returns>
+        private bool ValidateFormData(Form form)
+        {
+            if (string.IsNullOrWhiteSpace(form.LeadId))
             {
-                // Save files to the server
+                ModelState.AddModelError("LeadId", "Lead ID is required");
+                return false;
+            }
+
+            // Add more validation as needed
+            return true;
+        }
+
+        /// <summary>
+        /// Saves all uploaded files with proper error handling
+        /// </summary>
+        /// <param name="form">The form containing files to save</param>
+        /// <returns>FileSaveResult containing success status and any error messages</returns>
+        private async Task<FileSaveResult> SaveAllFiles(Form form)
+        {
+            try
+            {
                 string uploadPath = Server.MapPath("~/App_Data/uploads");
                 Directory.CreateDirectory(uploadPath);
 
-                byte[] vatFileData = SaveFile(form.VatCertificate, uploadPath);
-                byte[] accountOpeningFileData = SaveFile(form.AccountOpeningFile, uploadPath);
-                byte[] tradeLicenseData = SaveFile(form.TradeLicense, uploadPath);
-                byte[] poaData = SaveFile(form.POA, uploadPath);
-                byte[] Passport = SaveFile(form.Passport, uploadPath);
-                byte[] Visa = SaveFile(form.Visa, uploadPath);
-                byte[] EID = SaveFile(form.EID, uploadPath);
-                byte[] ChequeCopy = SaveFile(form.ChequeCopy, uploadPath);
-                byte[] EstablishmentCard = SaveFile(form.EstablishmentCardCopy, uploadPath);
-
-
-                bool accountUpdatedOrCreated = false;
-
-                // Check which button was clicked (Save or Submit)
-                if (action == "Save")
+                var result = new FileSaveResult
                 {
-                    if (!string.IsNullOrEmpty(form.LeadId))
-                    {
-                        var existingAccount = await _crmService.GetAccountByLeadId(form.LeadId);
+                    VatFileData = SaveFile(form.VatCertificate, uploadPath),
+                    AccountOpeningFileData = SaveFile(form.AccountOpeningFile, uploadPath),
+                    TradeLicenseData = SaveFile(form.TradeLicense, uploadPath),
+                    PoaData = SaveFile(form.POA, uploadPath),
+                    PassportData = SaveFile(form.Passport, uploadPath),
+                    VisaData = SaveFile(form.Visa, uploadPath),
+                    EidData = SaveFile(form.EID, uploadPath),
+                    ChequeCopyData = SaveFile(form.ChequeCopy, uploadPath),
+                    EstablishmentCardData = SaveFile(form.EstablishmentCardCopy, uploadPath),
+                    Success = true
+                };
 
-                        if (existingAccount != null)
-                        {
-                            // Update the existing account instead of creating a new one
-                            accountUpdatedOrCreated = await _crmService.UpdateAccountBasedOnLeadId(
-                                form.LeadId,
-                                form,
-                                vatFileData, form.VatCertificate?.FileName,
-                                tradeLicenseData, form.TradeLicense?.FileName,
-                                poaData, form.POA?.FileName,
-                                Passport, form.Passport?.FileName,
-                                Visa, form.Visa?.FileName,
-                                EID, form.EID?.FileName,
-                                accountOpeningFileData, form.AccountOpeningFile?.FileName,
-                                ChequeCopy, form.ChequeCopy?.FileName,
-                                EstablishmentCard, form.EstablishmentCardCopy?.FileName, false
-                            );
-                        }
-                        else
-                        {
-                            // If no existing account, create a new one
-                            accountUpdatedOrCreated = await _crmService.CreateAccountInCRM(
-                                form,
-                                vatFileData, form.VatCertificate?.FileName,
-                                tradeLicenseData, form.TradeLicense?.FileName,
-                                poaData, form.POA?.FileName,
-                                Passport, form.Passport?.FileName,
-                                Visa, form.Visa?.FileName,
-                                EID, form.EID?.FileName,
-                                accountOpeningFileData, form.AccountOpeningFile?.FileName,
-                                ChequeCopy, form.ChequeCopy?.FileName,
-                                EstablishmentCard, form.EstablishmentCardCopy?.FileName
-                            );
-                        }
-                    }
-                }
-                else if (action == "Submit")
+                return result;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"Error saving files: {ex.Message}");
+                return new FileSaveResult
                 {
-                    // Logic for Submit button (create new account)
-                    // Skipping Save and Submit action throws an error
-                    // Code added by Sabitha on 7th May
+                    Success = false,
+                    ErrorMessage = "Failed to save uploaded files. Please try again."
+                };
+            }
+        }
 
-                    //var existingAccount = await _crmService.GetAccountByLeadId(form.LeadId);
-                    //if (existingAccount == null)
-                    //{
-                    //    accountUpdatedOrCreated = await _crmService.CreateAccountInCRM(
-                    //            form,
-                    //            vatFileData, form.VatCertificate?.FileName,
-                    //            tradeLicenseData, form.TradeLicense?.FileName,
-                    //            poaData, form.POA?.FileName,
-                    //            Passport, form.Passport?.FileName,
-                    //            Visa, form.Visa?.FileName,
-                    //            EID, form.EID?.FileName,
-                    //            accountOpeningFileData, form.AccountOpeningFile?.FileName,
-                    //            ChequeCopy, form.ChequeCopy?.FileName,
-                    //            EstablishmentCard, form.EstablishmentCardCopy?.FileName
-                    //        );
-                    //}
+        /// <summary>
+        /// Processes the Save action
+        /// </summary>
+        /// <param name="form">The form data</param>
+        /// <param name="fileResults">The saved file results</param>
+        /// <returns>True if successful, false otherwise</returns>
+        private async Task<bool> ProcessSaveAction(Form form, FileSaveResult fileResults)
+        {
+            if (string.IsNullOrEmpty(form.LeadId))
+                return false;
 
-                    //if (!string.IsNullOrEmpty(form.LeadId)) // Assuming form has AccountId
-                    //{
-                    //    accountUpdatedOrCreated = await _crmService.UpdateAccountBasedOnLeadId(
-                    //        form.LeadId,
-                    //        form,
-                    //        vatFileData, form.VatCertificate?.FileName,
-                    //        tradeLicenseData, form.TradeLicense?.FileName,
-                    //        poaData, form.POA?.FileName,
-                    //        Passport, form.Passport?.FileName,
-                    //        Visa, form.Visa?.FileName,
-                    //        EID, form.EID?.FileName,
-                    //        accountOpeningFileData, form.AccountOpeningFile?.FileName,
-                    //        ChequeCopy, form.ChequeCopy?.FileName,
-                    //        EstablishmentCard, form.EstablishmentCardCopy?.FileName,true
-                    //    );
-                    //}
+            var existingAccount = await _crmService.GetAccountByLeadId(form.LeadId);
 
-                    // code added on aug 8
-
-                    if (!string.IsNullOrEmpty(form.LeadId))
-                    {
-                        var existingAccount = await _crmService.GetAccountByLeadId(form.LeadId);
-
-                        if (existingAccount == null)
-                        {
-                            // Create the account
-                            accountUpdatedOrCreated = await _crmService.CreateAccountInCRM(
-                                 form,
-                                 vatFileData, form.VatCertificate?.FileName,
-                                 tradeLicenseData, form.TradeLicense?.FileName,
-                                 poaData, form.POA?.FileName,
-                                 Passport, form.Passport?.FileName,
-                                 Visa, form.Visa?.FileName,
-                                 EID, form.EID?.FileName,
-                                 accountOpeningFileData, form.AccountOpeningFile?.FileName,
-                                 ChequeCopy, form.ChequeCopy?.FileName,
-                                 EstablishmentCard, form.EstablishmentCardCopy?.FileName
-                             );
-
-                            // Wait or retry until account is available
-                            int retryCount = 0;
-                            const int maxRetries = 10;
-                            while (retryCount < maxRetries)
-                            {
-                                await Task.Delay(1000); // wait 1 second
-                                existingAccount = await _crmService.GetAccountByLeadId(form.LeadId);
-                                if (existingAccount != null)
-                                    break;
-
-                                retryCount++;
-                            }
-
-                            if (existingAccount == null)
-                                throw new Exception("Account was created but could not be retrieved. Try again later.");
-                        }
-
-                        // Proceed with update
-                        accountUpdatedOrCreated = await _crmService.UpdateAccountBasedOnLeadId(
-                           form.LeadId,
-                           form,
-                           vatFileData, form.VatCertificate?.FileName,
-                           tradeLicenseData, form.TradeLicense?.FileName,
-                           poaData, form.POA?.FileName,
-                           Passport, form.Passport?.FileName,
-                           Visa, form.Visa?.FileName,
-                           EID, form.EID?.FileName,
-                           accountOpeningFileData, form.AccountOpeningFile?.FileName,
-                           ChequeCopy, form.ChequeCopy?.FileName,
-                           EstablishmentCard, form.EstablishmentCardCopy?.FileName, true
-                       );
-                    }
-                }
-
-                // After account creation or update
-                if (accountUpdatedOrCreated && action == "Submit")
-                {
-                    Session["SubmittedForm"] = form;
-                    return RedirectToAction("Thankyou");
-                }
-                if (accountUpdatedOrCreated && action == "Save")
-                {
-                    Session["SubmittedForm"] = form;
-                    return RedirectToAction("ThankyouOnSave");
-                }
+            if (existingAccount != null)
+            {
+                // Update existing account
+                return await _crmService.UpdateAccountBasedOnLeadId(
+                    form.LeadId, form,
+                    fileResults.VatFileData, form.VatCertificate?.FileName,
+                    fileResults.TradeLicenseData, form.TradeLicense?.FileName,
+                    fileResults.PoaData, form.POA?.FileName,
+                    fileResults.PassportData, form.Passport?.FileName,
+                    fileResults.VisaData, form.Visa?.FileName,
+                    fileResults.EidData, form.EID?.FileName,
+                    fileResults.AccountOpeningFileData, form.AccountOpeningFile?.FileName,
+                    fileResults.ChequeCopyData, form.ChequeCopy?.FileName,
+                    fileResults.EstablishmentCardData, form.EstablishmentCardCopy?.FileName, false
+                );
             }
             else
             {
-                // If ModelState is not valid, log the errors
-                foreach (var state in ModelState)
-                {
-                    if (state.Value.Errors.Any())
-                    {
-                        var fieldName = state.Key;
-                        var errors = state.Value.Errors;
+                // Create new account
+                return await _crmService.CreateAccountInCRM(
+                    form,
+                    fileResults.VatFileData, form.VatCertificate?.FileName,
+                    fileResults.TradeLicenseData, form.TradeLicense?.FileName,
+                    fileResults.PoaData, form.POA?.FileName,
+                    fileResults.PassportData, form.Passport?.FileName,
+                    fileResults.VisaData, form.Visa?.FileName,
+                    fileResults.EidData, form.EID?.FileName,
+                    fileResults.AccountOpeningFileData, form.AccountOpeningFile?.FileName,
+                    fileResults.ChequeCopyData, form.ChequeCopy?.FileName,
+                    fileResults.EstablishmentCardData, form.EstablishmentCardCopy?.FileName
+                );
+            }
+        }
 
-                        foreach (var error in errors)
-                        {
-                            // Log or inspect each error
-                            System.Diagnostics.Trace.WriteLine($"Field: {fieldName}, Error: {error.ErrorMessage}");
-                        }
-                    }
-                }
+        /// <summary>
+        /// Processes the Submit action
+        /// </summary>
+        /// <param name="form">The form data</param>
+        /// <param name="fileResults">The saved file results</param>
+        /// <returns>True if successful, false otherwise</returns>
+        private async Task<bool> ProcessSubmitAction(Form form, FileSaveResult fileResults)
+        {
+            if (string.IsNullOrEmpty(form.LeadId))
+                return false;
+
+            var existingAccount = await _crmService.GetAccountByLeadId(form.LeadId);
+
+            if (existingAccount == null)
+            {
+                // Create the account first
+                var accountCreated = await _crmService.CreateAccountInCRM(
+                    form,
+                    fileResults.VatFileData, form.VatCertificate?.FileName,
+                    fileResults.TradeLicenseData, form.TradeLicense?.FileName,
+                    fileResults.PoaData, form.POA?.FileName,
+                    fileResults.PassportData, form.Passport?.FileName,
+                    fileResults.VisaData, form.Visa?.FileName,
+                    fileResults.EidData, form.EID?.FileName,
+                    fileResults.AccountOpeningFileData, form.AccountOpeningFile?.FileName,
+                    fileResults.ChequeCopyData, form.ChequeCopy?.FileName,
+                    fileResults.EstablishmentCardData, form.EstablishmentCardCopy?.FileName
+                );
+
+                if (!accountCreated)
+                    return false;
+
+                // Wait for account to be available with retry logic
+                existingAccount = await WaitForAccountAvailability(form.LeadId);
+                if (existingAccount == null)
+                    return false;
             }
 
-            return View(form);
+            // Update the account
+            return await _crmService.UpdateAccountBasedOnLeadId(
+                form.LeadId, form,
+                fileResults.VatFileData, form.VatCertificate?.FileName,
+                fileResults.TradeLicenseData, form.TradeLicense?.FileName,
+                fileResults.PoaData, form.POA?.FileName,
+                fileResults.PassportData, form.Passport?.FileName,
+                fileResults.VisaData, form.Visa?.FileName,
+                fileResults.EidData, form.EID?.FileName,
+                fileResults.AccountOpeningFileData, form.AccountOpeningFile?.FileName,
+                fileResults.ChequeCopyData, form.ChequeCopy?.FileName,
+                fileResults.EstablishmentCardData, form.EstablishmentCardCopy?.FileName, true
+            );
+        }
+
+        /// <summary>
+        /// Waits for account to become available after creation
+        /// </summary>
+        /// <param name="leadId">The lead ID to check</param>
+        /// <returns>The account data if found, null otherwise</returns>
+        private async Task<JObject> WaitForAccountAvailability(string leadId)
+        {
+            int retryCount = 0;
+            const int maxRetries = 10;
+            const int retryDelayMs = 1000;
+
+            while (retryCount < maxRetries)
+            {
+                await Task.Delay(retryDelayMs);
+                var existingAccount = await _crmService.GetAccountByLeadId(leadId);
+                if (existingAccount != null)
+                    return existingAccount;
+
+                retryCount++;
+            }
+
+            System.Diagnostics.Trace.WriteLine($"Account not available after {maxRetries} retries for lead ID: {leadId}");
+            return null;
+        }
+
+        /// <summary>
+        /// Result class for file save operations
+        /// </summary>
+        private class FileSaveResult
+        {
+            public byte[] VatFileData { get; set; }
+            public byte[] AccountOpeningFileData { get; set; }
+            public byte[] TradeLicenseData { get; set; }
+            public byte[] PoaData { get; set; }
+            public byte[] PassportData { get; set; }
+            public byte[] VisaData { get; set; }
+            public byte[] EidData { get; set; }
+            public byte[] ChequeCopyData { get; set; }
+            public byte[] EstablishmentCardData { get; set; }
+            public bool Success { get; set; }
+            public string ErrorMessage { get; set; }
         }
 
 
