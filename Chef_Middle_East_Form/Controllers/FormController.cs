@@ -892,88 +892,112 @@ namespace Chef_Middle_East_Form.Controllers
             }
             return Json(new { success = false, message = "Invalid form data." });
         }
+        /// <summary>
+        /// Generates a PDF preview of the form before submission
+        /// </summary>
+        /// <param name="form">The form collection containing form data</param>
+        /// <returns>PDF file result or error status</returns>
         [HttpPost]
         public ActionResult GeneratePdfBeforeSubmit(FormCollection form)
         {
-            string templatePath = Server.MapPath("~/App_Data/Templates/Account Credit Form 1.0.docx");
-            if (!System.IO.File.Exists(templatePath))
+            try
             {
-                return new HttpStatusCodeResult(404, "Template not found.");
-            }
-
-            byte[] bytes = Chef_Middle_East_Form.Properties.Resources.Aspose_Words_NET;
-            using (MemoryStream stream = new MemoryStream(bytes))
-            {
-                // Set license for Aspose.Cells
-                Aspose.Words.License lic = new Aspose.Words.License();
-                lic.SetLicense(stream);
-                // Now you have a stream
-                // You can use the stream here
-            }
-            Aspose.Words.Document doc = new Aspose.Words.Document(templatePath);
-
-
-            string businessCategory =
-                $"{form["StatisticGroup"]}\n" +
-                $"{form["ChefSegment"]}\n" +
-                $"{form["SubSegment"]}";
-
-
-            string RemoveKnownCountryCodes(string phoneNumber)
-            {
-                if (string.IsNullOrWhiteSpace(phoneNumber))
-                    return string.Empty;
-
-                phoneNumber = phoneNumber.Trim();
-
-                var countryCodes = new[] { "+971", "+968", "+974" };
-
-                foreach (var code in countryCodes)
+                // Validate template exists
+                string templatePath = Server.MapPath("~/App_Data/Templates/Account Credit Form 1.0.docx");
+                if (!System.IO.File.Exists(templatePath))
                 {
-                    if (phoneNumber.StartsWith(code))
-                    {
-                        return phoneNumber.Substring(code.Length).TrimStart(); // removes country code and space
-                    }
+                    return new HttpStatusCodeResult(404, "Template not found.");
                 }
 
-                return phoneNumber; // if no known code matched
+                // Set up Aspose license
+                SetupAsposeLicense();
+
+                // Load document
+                var doc = new Aspose.Words.Document(templatePath);
+
+                // Process form data
+                var formValues = BuildFormValuesDictionary(form);
+                var roleMapping = BuildRoleMappingDictionary();
+
+                // Process contact information
+                ProcessContactInformation(doc, form, formValues, roleMapping);
+
+                // Process attachments
+                ProcessAttachments(doc, form);
+
+                // Process form fields
+                ProcessFormFields(doc, form, formValues);
+
+                // Process address fields
+                ProcessAddressFields(doc, form);
+
+                // Hide watermarks
+                HideWatermarks(doc);
+
+                // Generate and return PDF
+                return GeneratePdfResult(doc);
             }
-            string phone = string.Join("\n", new[]
+            catch (Exception ex)
             {
-           RemoveKnownCountryCodes(form["PersonInChargePhoneNumber"]),
-           RemoveKnownCountryCodes(form["CompanyOwnerPhoneNumber"]),
-           RemoveKnownCountryCodes(form["PurchasingPersonPhoneNumber"])
-       }.Where(x => !string.IsNullOrWhiteSpace(x))); // ensures blank ones are skipped
+                System.Diagnostics.Trace.WriteLine($"Error generating PDF: {ex.Message}");
+                return new HttpStatusCodeResult(500, "Failed to generate PDF. Please try again.");
+            }
+        }
 
-            Trace.WriteLine("Cleaned Phone:\n" + phone);
+        /// <summary>
+        /// Sets up the Aspose.Words license
+        /// </summary>
+        private void SetupAsposeLicense()
+        {
+            byte[] bytes = Chef_Middle_East_Form.Properties.Resources.Aspose_Words_NET;
+            using (var stream = new MemoryStream(bytes))
+            {
+                var license = new Aspose.Words.License();
+                license.SetLicense(stream);
+            }
+        }
 
+        /// <summary>
+        /// Builds a dictionary of form values for PDF generation
+        /// </summary>
+        /// <param name="form">The form collection</param>
+        /// <returns>Dictionary of form field names and values</returns>
+        private Dictionary<string, string> BuildFormValuesDictionary(FormCollection form)
+        {
+            string businessCategory = $"{form["StatisticGroup"]}\n{form["ChefSegment"]}\n{form["SubSegment"]}";
 
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "company name (as per trade license)", form["CompanyName"] },
+                { "trade name/outlet name", form["TradeName"] },
+                { "vat – trn #", form["VatNumber"] },
+                { "registered address_name", form["CompanyName"] },
+                { "license expiry date", form["LicenseExpiryDate"] },
+                { "trade license number", form["TradeLicenseNumber"] },
+                { "security cheque amount", form["SecurityChequeAmount"] },
+                { "payment terms", form["PaymentTerms"] },
+                { "currency in which account to be operated", "UAE Dirham" },
+                { "method of payment", form["CustomerPaymentMethod"] },
+                { "estimated purchase value", form["EstimatedPurchaseValue"] },
+                { "proposed credit limit", form["RequestedCreditLimit"] },
+                { "estimated monthly purchase", form["EstimatedMonthlyPurchase"] },
+                { "bank name", form["BankName"] },
+                { "account number", form["IBNAccountNumber"] },
+                { "iban number", form["IbanNumber"] },
+                { "swift code", form["SwiftCode"] },
+                { "correspondent bank name (if any)", form["Bank"] },
+                { "bank address", form["BankAddress"] },
+                { "proposed payment terms", form["ProposedPaymentTerms"] }
+            };
+        }
 
-            Dictionary<string, string> formValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-       {
-           { "company name (as per trade license)", form["CompanyName"] },
-           { "trade name/outlet name", form["TradeName"] },
-           { "vat – trn #", form["VatNumber"] },
-           { "registered address_name", form["CompanyName"] },
-           { "license expiry date", form["LicenseExpiryDate"] },
-           { "trade license number", form["TradeLicenseNumber"] },
-           { "security cheque amount", form["SecurityChequeAmount"] },
-           { "payment terms", form["PaymentTerms"] },
-           { "currency in which account to be operated", "UAE Dirham" },
-           { "method of payment", form["CustomerPaymentMethod"] },
-           { "estimated purchase value", form["EstimatedPurchaseValue"] },
-           { "proposed credit limit", form["RequestedCreditLimit"] },
-           { "estimated monthly purchase", form["EstimatedMonthlyPurchase"] },
-           { "bank name", form["BankName"] },
-           { "account number", form["IBNAccountNumber"] },
-           { "iban number", form["IbanNumber"] },
-           { "swift code", form["SwiftCode"] },
-           { "correspondent bank name (if any)", form["Bank"] },
-           { "bank address", form["BankAddress"] },
-           { "proposed payment terms", form["ProposedPaymentTerms"] }
-
-       };
-            var roleMapping = new Dictionary<string, string>
+        /// <summary>
+        /// Builds the role mapping dictionary for converting numeric roles to text
+        /// </summary>
+        /// <returns>Dictionary mapping role codes to role names</returns>
+        private Dictionary<string, string> BuildRoleMappingDictionary()
+        {
+            return new Dictionary<string, string>
             {
                 { "266990000", "Beverage professionals" },
                 { "266990001", "Culinary professionals" },
@@ -988,7 +1012,34 @@ namespace Chef_Middle_East_Form.Controllers
                 { "2", "Other" },
                 { "266990008", "Ecommerce" }
             };
-            // ✅ Person in Charge details
+        }
+
+        /// <summary>
+        /// Processes contact information in the document
+        /// </summary>
+        /// <param name="doc">The document to process</param>
+        /// <param name="form">The form collection</param>
+        /// <param name="formValues">The form values dictionary</param>
+        /// <param name="roleMapping">The role mapping dictionary</param>
+        private void ProcessContactInformation(Aspose.Words.Document doc, FormCollection form, 
+            Dictionary<string, string> formValues, Dictionary<string, string> roleMapping)
+        {
+            // Process Person in Charge details
+            ProcessPersonInCharge(doc, form, formValues, roleMapping);
+
+            // Process Purchasing Person details
+            ProcessPurchasingPerson(doc, form, formValues, roleMapping);
+
+            // Process Company Owner details
+            ProcessCompanyOwner(doc, form, formValues, roleMapping);
+        }
+
+        /// <summary>
+        /// Processes Person in Charge information
+        /// </summary>
+        private void ProcessPersonInCharge(Aspose.Words.Document doc, FormCollection form, 
+            Dictionary<string, string> formValues, Dictionary<string, string> roleMapping)
+        {
             string personInChargeFullName = $"{form["PersonInChargeFirstName"]} {form["PersonInChargeLastName"]}".Trim();
             if (!string.IsNullOrWhiteSpace(personInChargeFullName))
                 formValues.Add("person in charge full name", personInChargeFullName);
@@ -1001,95 +1052,114 @@ namespace Chef_Middle_East_Form.Controllers
 
             string personInChargeRole = form["PersonInChargeRole"];
             if (roleMapping.ContainsKey(personInChargeRole))
-                personInChargeRole = roleMapping[personInChargeRole]; // Convert numeric value to text
+                personInChargeRole = roleMapping[personInChargeRole];
 
             if (!string.IsNullOrWhiteSpace(personInChargeRole))
                 formValues.Add("person in charge role", personInChargeRole);
+        }
 
-            // ✅ Purchasing Person (Use Person in Charge if missing)
+        /// <summary>
+        /// Processes Purchasing Person information
+        /// </summary>
+        private void ProcessPurchasingPerson(Aspose.Words.Document doc, FormCollection form, 
+            Dictionary<string, string> formValues, Dictionary<string, string> roleMapping)
+        {
+            string personInChargeFullName = $"{form["PersonInChargeFirstName"]} {form["PersonInChargeLastName"]}".Trim();
+
             string purchasingPersonFullName = $"{form["PurchasingPersonFirstName"]} {form["PurchasingPersonLastName"]}".Trim();
             if (string.IsNullOrWhiteSpace(purchasingPersonFullName))
-                purchasingPersonFullName = personInChargeFullName; // Default to Person in Charge
+                purchasingPersonFullName = personInChargeFullName;
 
             if (!string.IsNullOrWhiteSpace(purchasingPersonFullName))
                 formValues.Add("purchasing person full name", purchasingPersonFullName);
 
             string purchasingPersonEmail = form["PurchasingPersonEmailID"];
             if (string.IsNullOrWhiteSpace(purchasingPersonEmail))
-                purchasingPersonEmail = form["PersonInChargeEmailID"]; // Default to Person in Charge Email
+                purchasingPersonEmail = form["PersonInChargeEmailID"];
 
             if (!string.IsNullOrWhiteSpace(purchasingPersonEmail))
                 formValues.Add("purchasing person contact email", purchasingPersonEmail);
 
             string purchasingPersonPhone = RemoveKnownCountryCodes(form["PurchasingPersonPhoneNumber"]);
             if (string.IsNullOrWhiteSpace(purchasingPersonPhone))
-                purchasingPersonPhone = form["PersonInChargePhoneNumber"]; // Default to Person in Charge Phone
+                purchasingPersonPhone = form["PersonInChargePhoneNumber"];
 
             if (!string.IsNullOrWhiteSpace(purchasingPersonPhone))
                 formValues.Add("purchasing person mobile phone", purchasingPersonPhone);
 
-            // ✅ Purchasing Person Role (Use Person in Charge Role if missing)
             string purchasingPersonRole = form["PurchasingPersonRole"];
             if (string.IsNullOrWhiteSpace(purchasingPersonRole))
-                purchasingPersonRole = personInChargeRole; // Default to Person in Charge Role
+                purchasingPersonRole = form["PersonInChargeRole"];
 
             if (roleMapping.ContainsKey(purchasingPersonRole))
                 purchasingPersonRole = roleMapping[purchasingPersonRole];
 
             if (!string.IsNullOrWhiteSpace(purchasingPersonRole))
                 formValues.Add("purchasing person role", purchasingPersonRole);
+        }
 
-            // ✅ Company Owner (Use Person in Charge if missing)
+        /// <summary>
+        /// Processes Company Owner information
+        /// </summary>
+        private void ProcessCompanyOwner(Aspose.Words.Document doc, FormCollection form, 
+            Dictionary<string, string> formValues, Dictionary<string, string> roleMapping)
+        {
+            string personInChargeFullName = $"{form["PersonInChargeFirstName"]} {form["PersonInChargeLastName"]}".Trim();
+
             string companyOwnerFullName = $"{form["CompanyOwnerFirstName"]} {form["CompanyOwnerLastName"]}".Trim();
             if (string.IsNullOrWhiteSpace(companyOwnerFullName))
-                companyOwnerFullName = personInChargeFullName; // Default to Person in Charge
+                companyOwnerFullName = personInChargeFullName;
 
             if (!string.IsNullOrWhiteSpace(companyOwnerFullName))
                 formValues.Add("company owner full name", companyOwnerFullName);
 
             string companyOwnerEmail = form["CompanyOwnerEmailID"];
             if (string.IsNullOrWhiteSpace(companyOwnerEmail))
-                companyOwnerEmail = form["PersonInChargeEmailID"]; // Default to Person in Charge Email
+                companyOwnerEmail = form["PersonInChargeEmailID"];
 
             if (!string.IsNullOrWhiteSpace(companyOwnerEmail))
                 formValues.Add("company owner contact email", companyOwnerEmail);
 
             string companyOwnerPhone = RemoveKnownCountryCodes(form["CompanyOwnerPhoneNumber"]);
             if (string.IsNullOrWhiteSpace(companyOwnerPhone))
-                companyOwnerPhone = form["PersonInChargePhoneNumber"]; // Default to Person in Charge Phone
+                companyOwnerPhone = form["PersonInChargePhoneNumber"];
 
             if (!string.IsNullOrWhiteSpace(companyOwnerPhone))
                 formValues.Add("company owner mobile phone", companyOwnerPhone);
 
-            // ✅ Company Owner Role (Use Person in Charge Role if missing)
             string companyOwnerRole = form["CompanyOwnerRole"];
             if (string.IsNullOrWhiteSpace(companyOwnerRole))
-                companyOwnerRole = personInChargeRole; // Default to Person in Charge Role
+                companyOwnerRole = form["PersonInChargeRole"];
 
             if (roleMapping.ContainsKey(companyOwnerRole))
                 companyOwnerRole = roleMapping[companyOwnerRole];
 
             if (!string.IsNullOrWhiteSpace(companyOwnerRole))
                 formValues.Add("company owner role", companyOwnerRole);
+        }
 
-            bool valuesUpdated = false;
-            bool contactRowsInserted = false;
-            Dictionary<string, string> attachments = new Dictionary<string, string>
-       {
-           { "VAT - TRN #", "VatCertificate" },
-           { "Trade/Commercial License", "TradeLicense" },
-           { "Visa", "Visa" },
-           { "Passport", "Passport" },
-           { "Power of Attorney", "POA" },
-           { "National ID", "EID" },
-           { "Account Opening File", "AccountOpeningFile" },
-           { "Cheque Copy", "ChequeCopy" }
-       };
+        /// <summary>
+        /// Processes attachments in the document
+        /// </summary>
+        /// <param name="doc">The document to process</param>
+        /// <param name="form">The form collection</param>
+        private void ProcessAttachments(Aspose.Words.Document doc, FormCollection form)
+        {
+            var attachments = new Dictionary<string, string>
+            {
+                { "VAT - TRN #", "VatCertificate" },
+                { "Trade/Commercial License", "TradeLicense" },
+                { "Visa", "Visa" },
+                { "Passport", "Passport" },
+                { "Power of Attorney", "POA" },
+                { "National ID", "EID" },
+                { "Account Opening File", "AccountOpeningFile" },
+                { "Cheque Copy", "ChequeCopy" }
+            };
 
-            // ✅ Get list of available attachments
-            List<string> availableAttachments = attachments
+            var availableAttachments = attachments
                 .Where(a => Request.Files[a.Value] != null && Request.Files[a.Value].ContentLength > 0)
-                .Select(a => "• " + a.Key) // Format as bullet points
+                .Select(a => "• " + a.Key)
                 .ToList();
 
             if (availableAttachments.Any())
@@ -1097,39 +1167,46 @@ namespace Chef_Middle_East_Form.Controllers
                 string attachmentText = string.Join("\n", availableAttachments);
                 Trace.WriteLine("Attachments to insert:\n" + attachmentText);
 
-                bool inserted = false;
-
-                foreach (Aspose.Words.Paragraph para in doc.GetChildNodes(NodeType.Paragraph, true))
-                {
-                    string paraText = para.GetText().Trim().ToLower();
-
-                    // ✅ Find the "List of Attachments" paragraph (make sure it's not empty)
-                    if (paraText.Contains("list of attachments"))
-                    {
-                        Trace.WriteLine("✅ Found 'List of Attachments' paragraph.");
-
-                        // ✅ Insert attachments **as a new paragraph** below the heading
-                        Aspose.Words.Paragraph newParagraph = new Aspose.Words.Paragraph(doc);
-                        newParagraph.AppendChild(new Run(doc, attachmentText));
-
-                        para.ParentNode.InsertAfter(newParagraph, para);
-                        inserted = true;
-                        valuesUpdated = true;
-                        break;
-                    }
-                }
-
-                if (!inserted)
-                {
-                    Trace.WriteLine("⚠️ 'List of Attachments' heading was NOT found in the document.");
-                }
+                InsertAttachmentsIntoDocument(doc, attachmentText);
             }
             else
             {
                 Trace.WriteLine("⚠️ No valid attachments found.");
             }
+        }
 
+        /// <summary>
+        /// Inserts attachments list into the document
+        /// </summary>
+        /// <param name="doc">The document to modify</param>
+        /// <param name="attachmentText">The attachment text to insert</param>
+        private void InsertAttachmentsIntoDocument(Aspose.Words.Document doc, string attachmentText)
+        {
+            foreach (Aspose.Words.Paragraph para in doc.GetChildNodes(NodeType.Paragraph, true))
+            {
+                string paraText = para.GetText().Trim().ToLower();
 
+                if (paraText.Contains("list of attachments"))
+                {
+                    Trace.WriteLine("✅ Found 'List of Attachments' paragraph.");
+
+                    var newParagraph = new Aspose.Words.Paragraph(doc);
+                    newParagraph.AppendChild(new Run(doc, attachmentText));
+
+                    para.ParentNode.InsertAfter(newParagraph, para);
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Processes form fields in the document
+        /// </summary>
+        /// <param name="doc">The document to process</param>
+        /// <param name="form">The form collection</param>
+        /// <param name="formValues">The form values dictionary</param>
+        private void ProcessFormFields(Aspose.Words.Document doc, FormCollection form, Dictionary<string, string> formValues)
+        {
             foreach (Table table in doc.GetChildNodes(NodeType.Table, true))
             {
                 foreach (Row row in table.Rows)
@@ -1144,112 +1221,198 @@ namespace Chef_Middle_East_Form.Controllers
                         .Trim()
                         .Replace("\r", "")
                         .Replace("\n", "")
-                        .Replace("", "")
                         .Replace(":", "")
                         .ToLower();
-                    Trace.WriteLine("cellText: " + cellText);
+
                     int valueColumnIndex = (row.Cells.Count == 2) ? 1 : row.Cells.Count - 1;
 
-                    if (cellText.Contains("business category"))
-                    {
-                        row.Cells[valueColumnIndex].RemoveAllChildren();
-                        string[] categories = businessCategory.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                        foreach (string line in categories)
-                        {
-                            var para = new Aspose.Words.Paragraph(doc);
-                            para.AppendChild(new Run(doc, line.Trim()));
-                            row.Cells[valueColumnIndex].AppendChild(para);
-                        }
-                        valuesUpdated = true;
-                    }
-                    else if (cellText == "name")
-                    {
-                        string parentTableText = table.Range.Text.ToLower();
-                        if (parentTableText.Contains("registered address") || parentTableText.Contains("corporate address") || parentTableText.Contains("delivery address"))
-                        {
-                            row.Cells[valueColumnIndex].RemoveAllChildren();
-                            var para = new Aspose.Words.Paragraph(doc);
-                            para.AppendChild(new Run(doc, form["CompanyName"]));
-                            row.Cells[valueColumnIndex].AppendChild(para);
-                            valuesUpdated = true;
-                        }
-                    }
-                    else if (formValues.ContainsKey(cellText))
-                    {
-                        string replacement = formValues[cellText];
-                        if (!string.IsNullOrWhiteSpace(replacement))
-                        {
-                            row.Cells[valueColumnIndex].RemoveAllChildren();
-                            var para = new Aspose.Words.Paragraph(doc);
-                            para.AppendChild(new Run(doc, replacement));
-                            row.Cells[valueColumnIndex].AppendChild(para);
-                            valuesUpdated = true;
-                        }
-                    }
-                    else if (cellText == "country" || cellText == "city" || cellText == "street")
-                    {
-                        string section = GetAddressSection(row);
-                        string valueToSet = null;
-
-                        if (section == "registered")
-                        {
-                            if (cellText == "country")
-                                valueToSet = !string.IsNullOrWhiteSpace(form["RegisteredCountry"]) ? form["RegisteredCountry"] : form["DeliveryCountry"];
-                            else if (cellText == "city")
-                                valueToSet = !string.IsNullOrWhiteSpace(form["RegisteredCity"]) ? form["RegisteredCity"] : form["DeliveryCity"];
-                            else if (cellText == "street")
-                                valueToSet = !string.IsNullOrWhiteSpace(form["RegisteredStreet"]) ? form["RegisteredStreet"] : form["DeliveryStreet"];
-                        }
-
-                        else if (section == "corporate")
-                        {
-                            if (cellText == "country") valueToSet = form["CorporateCountry"];
-                            else if (cellText == "city") valueToSet = form["CorporateCity"];
-                            else if (cellText == "street") valueToSet = form["CorporateStreet"];
-                        }
-                        else if (section == "delivery")
-                        {
-                            if (cellText == "country") valueToSet = form["DeliveryCountry"];
-                            else if (cellText == "city") valueToSet = form["DeliveryCity"];
-                            else if (cellText == "street") valueToSet = form["DeliveryStreet"];
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(valueToSet))
-                        {
-                            if (row.Cells.Count >= 2)
-                            {
-                                // Normal two-column row
-                                row.Cells[valueColumnIndex].RemoveAllChildren();
-                                var para = new Aspose.Words.Paragraph(doc);
-                                para.AppendChild(new Run(doc, valueToSet));
-                                row.Cells[valueColumnIndex].AppendChild(para);
-                                valuesUpdated = true;
-                            }
-                            else
-                            {
-                                // Possibly a single-cell row: update the first cell of the next row
-                                Table parenttable = (Table)row.GetAncestor(NodeType.Table);
-                                int currentIndex = table.Rows.IndexOf(row);
-                                if (currentIndex + 1 < table.Rows.Count)
-                                {
-                                    Row nextRow = table.Rows[currentIndex + 1];
-                                    if (nextRow.Cells.Count > 0)
-                                    {
-                                        nextRow.Cells[0].RemoveAllChildren();
-                                        var para = new Aspose.Words.Paragraph(doc);
-                                        para.AppendChild(new Run(doc, valueToSet));
-                                        nextRow.Cells[0].AppendChild(para);
-                                        valuesUpdated = true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-
+                    ProcessFormFieldRow(doc, row, cellText, valueColumnIndex, form, formValues);
                 }
             }
+        }
 
-            // Hide watermark if exists
+        /// <summary>
+        /// Processes a single form field row
+        /// </summary>
+        private void ProcessFormFieldRow(Aspose.Words.Document doc, Row row, string cellText, 
+            int valueColumnIndex, FormCollection form, Dictionary<string, string> formValues)
+        {
+            if (cellText.Contains("business category"))
+            {
+                ProcessBusinessCategoryRow(doc, row, valueColumnIndex, form);
+            }
+            else if (cellText == "name")
+            {
+                ProcessNameRow(doc, row, valueColumnIndex, form);
+            }
+            else if (formValues.ContainsKey(cellText))
+            {
+                ProcessFormValueRow(doc, row, valueColumnIndex, formValues[cellText]);
+            }
+        }
+
+        /// <summary>
+        /// Processes business category row
+        /// </summary>
+        private void ProcessBusinessCategoryRow(Aspose.Words.Document doc, Row row, int valueColumnIndex, FormCollection form)
+        {
+            string businessCategory = $"{form["StatisticGroup"]}\n{form["ChefSegment"]}\n{form["SubSegment"]}";
+            
+            row.Cells[valueColumnIndex].RemoveAllChildren();
+            string[] categories = businessCategory.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            
+            foreach (string line in categories)
+            {
+                var para = new Aspose.Words.Paragraph(doc);
+                para.AppendChild(new Run(doc, line.Trim()));
+                row.Cells[valueColumnIndex].AppendChild(para);
+            }
+        }
+
+        /// <summary>
+        /// Processes name row
+        /// </summary>
+        private void ProcessNameRow(Aspose.Words.Document doc, Row row, int valueColumnIndex, FormCollection form)
+        {
+            string parentTableText = row.GetAncestor(NodeType.Table).Range.Text.ToLower();
+            if (parentTableText.Contains("registered address") || parentTableText.Contains("corporate address") || parentTableText.Contains("delivery address"))
+            {
+                row.Cells[valueColumnIndex].RemoveAllChildren();
+                var para = new Aspose.Words.Paragraph(doc);
+                para.AppendChild(new Run(doc, form["CompanyName"]));
+                row.Cells[valueColumnIndex].AppendChild(para);
+            }
+        }
+
+        /// <summary>
+        /// Processes form value row
+        /// </summary>
+        private void ProcessFormValueRow(Aspose.Words.Document doc, Row row, int valueColumnIndex, string value)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                row.Cells[valueColumnIndex].RemoveAllChildren();
+                var para = new Aspose.Words.Paragraph(doc);
+                para.AppendChild(new Run(doc, value));
+                row.Cells[valueColumnIndex].AppendChild(para);
+            }
+        }
+
+        /// <summary>
+        /// Processes address fields in the document
+        /// </summary>
+        /// <param name="doc">The document to process</param>
+        /// <param name="form">The form collection</param>
+        private void ProcessAddressFields(Aspose.Words.Document doc, FormCollection form)
+        {
+            foreach (Table table in doc.GetChildNodes(NodeType.Table, true))
+            {
+                foreach (Row row in table.Rows)
+                {
+                    string cellText = row.Cells[0].GetText()
+                        .Trim()
+                        .Replace("\r", "")
+                        .Replace("\n", "")
+                        .Replace(":", "")
+                        .ToLower();
+
+                    if (cellText == "country" || cellText == "city" || cellText == "street")
+                    {
+                        ProcessAddressRow(doc, row, cellText, form);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Processes a single address row
+        /// </summary>
+        private void ProcessAddressRow(Aspose.Words.Document doc, Row row, string cellText, FormCollection form)
+        {
+            string section = GetAddressSection(row);
+            string valueToSet = GetAddressValue(section, cellText, form);
+
+            if (!string.IsNullOrWhiteSpace(valueToSet))
+            {
+                if (row.Cells.Count >= 2)
+                {
+                    // Normal two-column row
+                    row.Cells[1].RemoveAllChildren();
+                    var para = new Aspose.Words.Paragraph(doc);
+                    para.AppendChild(new Run(doc, valueToSet));
+                    row.Cells[1].AppendChild(para);
+                }
+                else
+                {
+                    // Single-cell row: update the first cell of the next row
+                    UpdateNextRowCell(doc, row, valueToSet);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the address value based on section and field type
+        /// </summary>
+        private string GetAddressValue(string section, string fieldType, FormCollection form)
+        {
+            switch (section)
+            {
+                case "registered":
+                    return fieldType switch
+                    {
+                        "country" => !string.IsNullOrWhiteSpace(form["RegisteredCountry"]) ? form["RegisteredCountry"] : form["DeliveryCountry"],
+                        "city" => !string.IsNullOrWhiteSpace(form["RegisteredCity"]) ? form["RegisteredCity"] : form["DeliveryCity"],
+                        "street" => !string.IsNullOrWhiteSpace(form["RegisteredStreet"]) ? form["RegisteredStreet"] : form["DeliveryStreet"],
+                        _ => null
+                    };
+                case "corporate":
+                    return fieldType switch
+                    {
+                        "country" => form["CorporateCountry"],
+                        "city" => form["CorporateCity"],
+                        "street" => form["CorporateStreet"],
+                        _ => null
+                    };
+                case "delivery":
+                    return fieldType switch
+                    {
+                        "country" => form["DeliveryCountry"],
+                        "city" => form["DeliveryCity"],
+                        "street" => form["DeliveryStreet"],
+                        _ => null
+                    };
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// Updates the next row's cell with the address value
+        /// </summary>
+        private void UpdateNextRowCell(Aspose.Words.Document doc, Row currentRow, string value)
+        {
+            Table parentTable = (Table)currentRow.GetAncestor(NodeType.Table);
+            int currentIndex = parentTable.Rows.IndexOf(currentRow);
+            
+            if (currentIndex + 1 < parentTable.Rows.Count)
+            {
+                Row nextRow = parentTable.Rows[currentIndex + 1];
+                if (nextRow.Cells.Count > 0)
+                {
+                    nextRow.Cells[0].RemoveAllChildren();
+                    var para = new Aspose.Words.Paragraph(doc);
+                    para.AppendChild(new Run(doc, value));
+                    nextRow.Cells[0].AppendChild(para);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Hides watermarks in the document
+        /// </summary>
+        /// <param name="doc">The document to process</param>
+        private void HideWatermarks(Aspose.Words.Document doc)
+        {
             foreach (Aspose.Words.Paragraph para in doc.GetChildNodes(NodeType.Paragraph, true))
             {
                 string text = para.GetText().Trim();
@@ -1257,23 +1420,50 @@ namespace Chef_Middle_East_Form.Controllers
                 {
                     foreach (Run run in para.Runs)
                     {
-                        run.Font.Color = System.Drawing.Color.White; // Hide watermark
+                        run.Font.Color = System.Drawing.Color.White;
                     }
                 }
             }
+        }
 
-            // Only generate and return PDF if values were updated or contact rows were inserted
-            if (valuesUpdated || contactRowsInserted)
+        /// <summary>
+        /// Generates the final PDF result
+        /// </summary>
+        /// <param name="doc">The processed document</param>
+        /// <returns>PDF file result or error status</returns>
+        private ActionResult GeneratePdfResult(Aspose.Words.Document doc)
+        {
+            using (var stream = new MemoryStream())
             {
-                using (MemoryStream stream = new MemoryStream())
+                doc.Save(stream, SaveFormat.Pdf);
+                stream.Position = 0;
+                return File(stream.ToArray(), "application/pdf", "Account_Opening_Form_Preview.pdf");
+            }
+        }
+
+        /// <summary>
+        /// Removes known country codes from phone numbers
+        /// </summary>
+        /// <param name="phoneNumber">The phone number to process</param>
+        /// <returns>Phone number without country code</returns>
+        private string RemoveKnownCountryCodes(string phoneNumber)
+        {
+            if (string.IsNullOrWhiteSpace(phoneNumber))
+                return string.Empty;
+
+            phoneNumber = phoneNumber.Trim();
+
+            var countryCodes = new[] { "+971", "+968", "+974" };
+
+            foreach (var code in countryCodes)
+            {
+                if (phoneNumber.StartsWith(code))
                 {
-                    doc.Save(stream, SaveFormat.Pdf);
-                    stream.Position = 0;
-                    return File(stream.ToArray(), "application/pdf", "Account_Opening_Form_Preview.pdf");
+                    return phoneNumber.Substring(code.Length).TrimStart();
                 }
             }
 
-            return new HttpStatusCodeResult(500, "Failed to generate PDF. No values were updated.");
+            return phoneNumber;
         }
 
         public ActionResult LinkExpired()
