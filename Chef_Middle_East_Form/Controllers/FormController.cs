@@ -43,15 +43,32 @@ namespace Chef_Middle_East_Form.Controllers
         [OutputCache(NoStore = true, Duration = 0, VaryByParam = "*")]
         public async Task<ActionResult> Create(string leadId)
         {
-            var form = new Form();
+            try
+            {
+                var form = new Form();
 
-            string crmUrl = ConfigurationManager.AppSettings["CRMAppUrl"];
-            string clientId = ConfigurationManager.AppSettings["CRMClientId"];
-            string tenantId = ConfigurationManager.AppSettings["CRMTenantId"];
-            string clientSecret = ConfigurationManager.AppSettings["CRMClientSecret"];
+                // Validate leadId parameter
+                if (string.IsNullOrWhiteSpace(leadId))
+                {
+                    System.Diagnostics.Trace.WriteLine("Warning: Create method called without leadId");
+                    return View("LinkExpired");
+                }
 
-            JObject accountData = null;
-            Form leadData = null;
+                string crmUrl = ConfigurationManager.AppSettings["CRMAppUrl"];
+                string clientId = ConfigurationManager.AppSettings["CRMClientId"];
+                string tenantId = ConfigurationManager.AppSettings["CRMTenantId"];
+                string clientSecret = ConfigurationManager.AppSettings["CRMClientSecret"];
+
+                // Validate configuration
+                if (string.IsNullOrEmpty(crmUrl) || string.IsNullOrEmpty(clientId) || 
+                    string.IsNullOrEmpty(tenantId) || string.IsNullOrEmpty(clientSecret))
+                {
+                    System.Diagnostics.Trace.WriteLine("Error: CRM configuration is incomplete");
+                    return View("Error");
+                }
+
+                JObject accountData = null;
+                Form leadData = null;
 
             if (!string.IsNullOrEmpty(leadId))
             {
@@ -60,7 +77,7 @@ namespace Chef_Middle_East_Form.Controllers
 
                 // Get Lead data
                 leadData = await _crmService.GetLeadData(leadId);
-                if (leadData != null && leadData.EmailSenton != null)
+                if (leadData?.EmailSenton != null)
                 {
                     DateTime expiryTime = leadData.EmailSenton.AddHours(48);
 
@@ -315,6 +332,13 @@ namespace Chef_Middle_East_Form.Controllers
                 }
             }
                 return View(form);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"Error in Form/Create: {ex.Message}");
+                System.Diagnostics.Trace.WriteLine($"Stack trace: {ex.StackTrace}");
+                return View("Error");
+            }
         }
         private byte[] GetFileFromUploadFolder(string fileName)
         {
@@ -552,19 +576,59 @@ namespace Chef_Middle_East_Form.Controllers
 
 
         private byte[] SaveFile(HttpPostedFileBase file, string path)
+        {
+            if (file != null && file.ContentLength > 0)
             {
-                if (file != null && file.ContentLength > 0)
+                // File size validation (10MB limit)
+                const int maxFileSizeBytes = 10 * 1024 * 1024; // 10MB
+                if (file.ContentLength > maxFileSizeBytes)
                 {
-                    string filePath = Path.Combine(path, Path.GetFileName(file.FileName));
-                    file.SaveAs(filePath);
+                    throw new ArgumentException($"File size exceeds maximum allowed size of 10MB. Current size: {file.ContentLength / (1024 * 1024):F2}MB");
+                }
 
+                // File type validation
+                string[] allowedExtensions = { ".pdf", ".doc", ".docx", ".png", ".jpg", ".jpeg" };
+                string fileExtension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+                
+                if (string.IsNullOrEmpty(fileExtension) || !allowedExtensions.Contains(fileExtension))
+                {
+                    throw new ArgumentException($"File type not allowed. Allowed types: {string.Join(", ", allowedExtensions)}. Received: {fileExtension}");
+                }
+
+                // Sanitize filename to prevent path traversal attacks
+                string safeFileName = Path.GetFileName(file.FileName);
+                if (string.IsNullOrEmpty(safeFileName) || safeFileName.Contains("..") || safeFileName.Contains("/") || safeFileName.Contains("\\"))
+                {
+                    throw new ArgumentException("Invalid filename detected.");
+                }
+
+                string filePath = Path.Combine(path, safeFileName);
+                
+                // Ensure the target directory is within the uploads folder
+                string uploadsFolder = Server.MapPath("~/App_Data/uploads");
+                if (!filePath.StartsWith(uploadsFolder, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ArgumentException("Invalid file path detected.");
+                }
+
+                try
+                {
+                    file.SaveAs(filePath);
+                    
                     using (var binaryReader = new BinaryReader(file.InputStream))
                     {
                         return binaryReader.ReadBytes(file.ContentLength);
                     }
                 }
-                return null;
+                catch (Exception ex)
+                {
+                    // Log the error and rethrow
+                    System.Diagnostics.Trace.WriteLine($"Error saving file {safeFileName}: {ex.Message}");
+                    throw new InvalidOperationException($"Failed to save file: {ex.Message}", ex);
+                }
             }
+            return null;
+        }
 
 
         // GET: Form/ThankYou - Displays thank you page and triggers CRM creation
