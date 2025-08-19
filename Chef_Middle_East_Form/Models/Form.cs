@@ -6,21 +6,51 @@ namespace Chef_Middle_East_Form.Models
 {
     public class Form
     {
+        /// <summary>
+        /// Unique identifier for the lead record
+        /// </summary>
         public string LeadId { get; set; }
+        
+        /// <summary>
+        /// E-commerce related information
+        /// Note: Keeping original property name for backward compatibility
+        /// </summary>
         public string Ecomerce { get; set; }
+        
+        /// <summary>
+        /// Properly spelled alias for Ecomerce property
+        /// </summary>
+        public string Ecommerce 
+        { 
+            get { return Ecomerce; } 
+            set { Ecomerce = value; } 
+        }
+        
+        /// <summary>
+        /// Reason or context for the form submission
+        /// </summary>
         public string Reason { get; set; }
         public string InventorySystem { get; set; }
         public DateTime? EmailSenton { get; set; }
 
         // Company Information Section
-        //[Required]
+        /// <summary>
+        /// Customer payment method selection - Required business field
+        /// </summary>
+        [Required(ErrorMessage = "Customer Payment Method is required")]
         [Display(Name = "Customer Payment Method")]
         public string CustomerPaymentMethod { get; set; } // Dropdown: Cash, Cheque, Credit
 
+        /// <summary>
+        /// Customer type classification - Optional business field
+        /// </summary>
         [Display(Name = "Type")]
         public string Type { get; set; } // Dropdown: B2B (optional)
 
-       // [Required]
+        /// <summary>
+        /// Branch location - Mandatory business field as per requirements
+        /// </summary>
+        [Required(ErrorMessage = "Branch selection is required")]
         [Display(Name = "Branch")]
         public string Branch { get; set; } // Look Up: DXB (Mandatory)
 
@@ -30,7 +60,11 @@ namespace Chef_Middle_East_Form.Models
         [Display(Name = "Parent Account")]
         public string ParentAccount { get; set; } // Optional
 
-       // [Required]
+        /// <summary>
+        /// Trade name or outlet name as per trade license - Mandatory business field
+        /// </summary>
+        [Required(ErrorMessage = "Trade Name/Outlet Name is required as per trade license")]
+        [StringLength(200, ErrorMessage = "Trade Name cannot exceed 200 characters")]
         [Display(Name = "Trade Name/Outlet Name( As per Trade license )")]
         public string TradeName { get; set; } // Mandatory
 
@@ -174,15 +208,24 @@ namespace Chef_Middle_East_Form.Models
 
         // Primary Address
         // Additional Fields
-       // [Required]
+        /// <summary>
+        /// Statistical grouping for customer categorization - Mandatory business field
+        /// </summary>
+        [Required(ErrorMessage = "Statistic Group is required")]
         [Display(Name = "Statistic Group")]
         public string StatisticGroup { get; set; } // Mandatory Dropdown
 
-       // [Required]
+        /// <summary>
+        /// Chef customer segment classification - Mandatory business field
+        /// </summary>
+        [Required(ErrorMessage = "Chef Segment is required")]
         [Display(Name = "Chef Segment")]
         public string ChefSegment { get; set; } // Mandatory Dropdown
 
-      //  [Required]
+        /// <summary>
+        /// Sub-segment classification within chef segment - Mandatory business field
+        /// </summary>
+        [Required(ErrorMessage = "Sub Segment is required")]
         [Display(Name = "Sub Segment")]
         public string SubSegment { get; set; } // Mandatory Dropdown
 

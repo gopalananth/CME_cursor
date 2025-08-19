@@ -125,15 +125,24 @@ namespace Chef_Middle_East_Form.Controllers
         }
 
         /// <summary>
-        /// Checks if the lead link has expired (48 hours from email sent)
+        /// Checks if the lead link has expired based on configured expiry hours
         /// </summary>
         /// <param name="leadData">The lead data containing email sent timestamp</param>
         /// <returns>True if link is expired, false otherwise</returns>
+        /// <remarks>
+        /// Expiry duration is configurable via 'LinkExpiryHours' app setting (default: 48 hours)
+        /// This allows for flexible link expiration policies without code changes
+        /// </remarks>
         private bool IsLinkExpired(Form leadData)
         {
             if (leadData?.EmailSenton != null)
             {
-                DateTime expiryTime = leadData.EmailSenton.AddHours(48);
+                // Get configurable expiry hours with fallback to 48 hours
+                var expiryHours = int.Parse(ConfigurationManager.AppSettings["LinkExpiryHours"] ?? "48");
+                DateTime expiryTime = leadData.EmailSenton.AddHours(expiryHours);
+                
+                _loggingService.LogInfo($"Checking link expiry: EmailSent={leadData.EmailSenton}, ExpiryHours={expiryHours}, ExpiryTime={expiryTime}, CurrentTime={DateTime.UtcNow}");
+                
                 return DateTime.UtcNow > expiryTime;
             }
             return false;
@@ -383,32 +392,37 @@ namespace Chef_Middle_East_Form.Controllers
         }
 
         /// <summary>
+        /// Helper method to safely assign account data values to form properties
+        /// Reduces code duplication and provides consistent null checking
+        /// </summary>
+        /// <param name="accountData">Source data from CRM</param>
+        /// <param name="key">The key to look up in account data</param>
+        /// <param name="assignAction">Action to execute if value is not null/empty</param>
+        private void SafeAssignFromAccountData(JObject accountData, string key, Action<string> assignAction)
+        {
+            if (!string.IsNullOrWhiteSpace(accountData[key]?.ToString()))
+            {
+                assignAction(accountData[key].ToString());
+            }
+        }
+
+        /// <summary>
         /// Populates contact information from account data
         /// </summary>
         private void PopulateContactInformation(Form form, JObject accountData)
         {
-            // Person in Charge
-            if (!string.IsNullOrWhiteSpace(accountData["primaryContact_firstname"]?.ToString()))
-                form.PersonInChargeFirstName = accountData["primaryContact_firstname"].ToString();
-
-            if (!string.IsNullOrWhiteSpace(accountData["primaryContact_lastname"]?.ToString()))
-                form.PersonInChargeLastName = accountData["primaryContact_lastname"].ToString();
-
-            if (!string.IsNullOrWhiteSpace(accountData["primaryContact_emailaddress1"]?.ToString()))
-                form.PersonInChargeEmailID = accountData["primaryContact_emailaddress1"].ToString();
+            // Person in Charge - Using helper method to reduce duplication
+            SafeAssignFromAccountData(accountData, "primaryContact_firstname", value => form.PersonInChargeFirstName = value);
+            SafeAssignFromAccountData(accountData, "primaryContact_lastname", value => form.PersonInChargeLastName = value);
+            SafeAssignFromAccountData(accountData, "primaryContact_emailaddress1", value => form.PersonInChargeEmailID = value);
 
             if (!string.IsNullOrWhiteSpace(accountData["primaryContact_mobilephone"]?.ToString()))
                 form.PersonInChargePhoneNumber = accountData["primaryContact_mobilephone"].ToString();
 
-            // Company Owner
-            if (!string.IsNullOrWhiteSpace(accountData["owner_firstname"]?.ToString()))
-                form.CompanyOwnerFirstName = accountData["owner_firstname"].ToString();
-
-            if (!string.IsNullOrWhiteSpace(accountData["owner_lastname"]?.ToString()))
-                form.CompanyOwnerLastName = accountData["owner_lastname"].ToString();
-
-            if (!string.IsNullOrWhiteSpace(accountData["owner_emailaddress1"]?.ToString()))
-                form.CompanyOwnerEmailID = accountData["owner_emailaddress1"].ToString();
+            // Company Owner - Using helper method to reduce duplication  
+            SafeAssignFromAccountData(accountData, "owner_firstname", value => form.CompanyOwnerFirstName = value);
+            SafeAssignFromAccountData(accountData, "owner_lastname", value => form.CompanyOwnerLastName = value);
+            SafeAssignFromAccountData(accountData, "owner_emailaddress1", value => form.CompanyOwnerEmailID = value);
 
             if (!string.IsNullOrWhiteSpace(accountData["owner_mobilephone"]?.ToString()))
                 form.CompanyOwnerPhoneNumber = accountData["owner_mobilephone"].ToString();
@@ -435,8 +449,7 @@ namespace Chef_Middle_East_Form.Controllers
             if (!string.IsNullOrWhiteSpace(accountData["owner_mobilephone"]?.ToString()))
                 form.CompanyOwnerPhoneNumber = accountData["owner_mobilephone"].ToString();
 
-            if (!string.IsNullOrWhiteSpace(accountData["purchasingPerson_mobilephone"]?.ToString()))
-                form.PurchasingPersonPhoneNumber = accountData["purchasingPerson_mobilephone"].ToString();
+            // Note: Removed duplicate purchasingPerson_mobilephone assignment that was here
             // ✅ Person in Charge Role
             if (!string.IsNullOrWhiteSpace(accountData["primaryContact_nw_rule"]?.ToString()))
                 form.PersonInChargeRole = accountData["primaryContact_nw_rule"].ToString();

@@ -399,6 +399,7 @@
     <Compile Include="Services\IFileUploadService.cs" />
     <Compile Include="Services\ILoggingService.cs" />
     <Compile Include="Services\LoggingService.cs" />
+    <Compile Include="Services\SecureConfigurationService.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Content\bootstrap-theme.css" />

@@ -87,6 +87,7 @@
     <Compile Include="LoggingServiceTests.cs" />
     <Compile Include="FileUploadServiceTests.cs" />
     <Compile Include="CRMServiceTests.cs" />
+    <Compile Include="SecureConfigurationServiceTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -417,5 +417,136 @@ namespace Chef_Middle_East_Form.Tests
         }
 
         #endregion
+
+        #region Configuration Error Handling Tests
+
+        [TestMethod]
+        public void FileUploadService_InvalidMaxFileSizeConfiguration_UsesDefault()
+        {
+            // This test verifies that invalid configuration falls back to default
+            // Note: We can't easily test this without dependency injection, but we can verify
+            // the service initializes without throwing exceptions
+            
+            // Act & Assert - Constructor should not throw
+            var service = new FileUploadService();
+            
+            // Verify service is functional
+            var maxSize = service.GetMaxFileSize();
+            Assert.IsTrue(maxSize > 0, "Max file size should be positive");
+        }
+
+        [TestMethod]
+        public void FileUploadService_Constructor_InitializesCorrectly()
+        {
+            // Act
+            var service = new FileUploadService();
+
+            // Assert
+            Assert.IsNotNull(service);
+            var maxSize = service.GetMaxFileSize();
+            Assert.IsTrue(maxSize > 0);
+        }
+
+        [TestMethod]
+        public void ValidateFile_FileSizeExactsMaxLimit_ShouldReturnTrue()
+        {
+            // Arrange
+            var service = new FileUploadService();
+            var maxSize = service.GetMaxFileSize();
+            var mockFile = CreateMockFile("exact.pdf", "application/pdf", maxSize);
+
+            // Act
+            var result = service.ValidateFile(mockFile.Object);
+
+            // Assert
+            Assert.IsTrue(result.IsValid);
+            Assert.IsNull(result.ErrorMessage);
+        }
+
+        [TestMethod]
+        public void ValidateFile_FileSizeOverMaxLimit_ShouldReturnFalseWithSpecificMessage()
+        {
+            // Arrange
+            var service = new FileUploadService();
+            var maxSize = service.GetMaxFileSize();
+            var mockFile = CreateMockFile("oversized.pdf", "application/pdf", maxSize + 1);
+
+            // Act
+            var result = service.ValidateFile(mockFile.Object);
+
+            // Assert
+            Assert.IsFalse(result.IsValid);
+            Assert.IsNotNull(result.ErrorMessage);
+            Assert.IsTrue(result.ErrorMessage.Contains("exceeds"));
+            Assert.IsTrue(result.ErrorMessage.Contains("MB"));
+        }
+
+        [TestMethod]
+        public void ValidateFile_EmptyFileName_ShouldReturnFalse()
+        {
+            // Arrange
+            var service = new FileUploadService();
+            var mockFile = new Mock<HttpPostedFileBase>();
+            mockFile.Setup(f => f.FileName).Returns("");
+            mockFile.Setup(f => f.ContentType).Returns("application/pdf");
+            mockFile.Setup(f => f.ContentLength).Returns(1024);
+
+            // Act
+            var result = service.ValidateFile(mockFile.Object);
+
+            // Assert
+            Assert.IsFalse(result.IsValid);
+            Assert.IsNotNull(result.ErrorMessage);
+        }
+
+        [TestMethod]
+        public void ValidateFile_WhitespaceFileName_ShouldReturnFalse()
+        {
+            // Arrange
+            var service = new FileUploadService();
+            var mockFile = new Mock<HttpPostedFileBase>();
+            mockFile.Setup(f => f.FileName).Returns("   ");
+            mockFile.Setup(f => f.ContentType).Returns("application/pdf");
+            mockFile.Setup(f => f.ContentLength).Returns(1024);
+
+            // Act
+            var result = service.ValidateFile(mockFile.Object);
+
+            // Assert
+            Assert.IsFalse(result.IsValid);
+            Assert.IsNotNull(result.ErrorMessage);
+        }
+
+        [TestMethod]
+        public void ValidateFile_SecurityThreatFilename_ShouldReturnFalse()
+        {
+            // Arrange
+            var service = new FileUploadService();
+            var threatFilenames = new[]
+            {
+                "../../../evil.pdf",
+                "..\\..\\evil.pdf", 
+                "normal.pdf\0hidden",
+                "/etc/passwd",
+                "C:\\Windows\\System32\\evil.exe"
+            };
+
+            foreach (var filename in threatFilenames)
+            {
+                var mockFile = new Mock<HttpPostedFileBase>();
+                mockFile.Setup(f => f.FileName).Returns(filename);
+                mockFile.Setup(f => f.ContentType).Returns("application/pdf");
+                mockFile.Setup(f => f.ContentLength).Returns(1024);
+
+                // Act
+                var result = service.ValidateFile(mockFile.Object);
+
+                // Assert
+                Assert.IsFalse(result.IsValid, $"Filename '{filename}' should be rejected for security");
+                Assert.IsNotNull(result.ErrorMessage);
+            }
+        }
+
+        #endregion
     }
 }

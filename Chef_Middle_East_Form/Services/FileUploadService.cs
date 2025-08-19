@@ -26,9 +26,26 @@ namespace Chef_Middle_East_Form.Services
 
         public FileUploadService()
         {
-            // Make max file size configurable, default to 10MB
-            var maxFileSizeMB = int.Parse(ConfigurationManager.AppSettings["MaxFileSizeMB"] ?? "10");
-            _maxFileSizeBytes = maxFileSizeMB * 1024 * 1024;
+            // Make max file size configurable with proper error handling
+            try
+            {
+                var maxFileSizeMBString = ConfigurationManager.AppSettings["MaxFileSizeMB"] ?? "10";
+                var maxFileSizeMB = int.Parse(maxFileSizeMBString);
+                
+                // Validate reasonable bounds (1MB to 100MB)
+                if (maxFileSizeMB < 1 || maxFileSizeMB > 100)
+                {
+                    throw new ArgumentOutOfRangeException($"MaxFileSizeMB must be between 1 and 100, got: {maxFileSizeMB}");
+                }
+                
+                _maxFileSizeBytes = maxFileSizeMB * 1024 * 1024;
+            }
+            catch (Exception ex) when (!(ex is ArgumentOutOfRangeException))
+            {
+                // Log the error and use safe default
+                System.Diagnostics.Trace.WriteLine($"Error parsing MaxFileSizeMB configuration, using default 10MB: {ex.Message}");
+                _maxFileSizeBytes = 10 * 1024 * 1024; // 10MB default
+            }
         }
 
         public FileValidationResult ValidateFile(HttpPostedFileBase file)
@@ -91,22 +108,7 @@ namespace Chef_Middle_East_Form.Services
             return _maxFileSizeBytes;
         }
 
-        public static void UploadFileToCrm()
-        {
-            string crmUrl = ConfigurationManager.AppSettings["CRMAppUrl"];
-            string clientId = ConfigurationManager.AppSettings["CRMClientId"];
-            string tenantId = ConfigurationManager.AppSettings["CRMTenantId"];
-            string clientSecret = ConfigurationManager.AppSettings["CRMClientSecret"];
-
-            string connectionString = $"AuthType=ClientSecret;Url={crmUrl};ClientId={clientId};ClientSecret={clientSecret};TenantId={tenantId}";
-
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-            var serviceClient = new ServiceClient(connectionString);
-
-            if (serviceClient.IsReady)
-            {
-                var st = "Connected Successfully";
-            }
-        }
+        // Note: Removed dead code UploadFileToCrm() method that was not used anywhere
+        // This method was incomplete and posed security risks with hardcoded configuration
     }
 }

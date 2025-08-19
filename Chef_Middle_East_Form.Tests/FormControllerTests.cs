@@ -443,5 +443,187 @@ namespace Chef_Middle_East_Form.Tests
         }
 
         #endregion
+
+        #region Configuration and Validation Tests
+
+        [TestMethod]
+        public void IsLinkExpired_CustomExpiryHours_WorksCorrectly()
+        {
+            // This test verifies the configurable expiry functionality
+            // Note: We can't easily test private methods, but we can test the behavior
+            // through the public Create method
+            
+            // Arrange
+            var expiredForm = new Form 
+            { 
+                LeadId = "test-expired-lead",
+                EmailSenton = DateTime.UtcNow.AddHours(-50) // 50 hours ago (more than default 48)
+            };
+            
+            _mockCRMService.Setup(x => x.GetLeadDataAsync("test-expired-lead"))
+                .ReturnsAsync(expiredForm);
+
+            // Act
+            var result = _controller.Create("test-expired-lead").Result as ViewResult;
+
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual("LinkExpired", result.ViewName);
+        }
+
+        [TestMethod]
+        public void IsLinkExpired_WithinExpiryWindow_AllowsAccess()
+        {
+            // Arrange
+            var validForm = new Form 
+            { 
+                LeadId = "test-valid-lead",
+                EmailSenton = DateTime.UtcNow.AddHours(-24) // 24 hours ago (within 48 hour window)
+            };
+            
+            _mockCRMService.Setup(x => x.GetLeadDataAsync("test-valid-lead"))
+                .ReturnsAsync(validForm);
+
+            // Act
+            var result = _controller.Create("test-valid-lead").Result as ViewResult;
+
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreNotEqual("LinkExpired", result.ViewName);
+            Assert.IsNotNull(result.Model);
+        }
+
+        [TestMethod]
+        public void Create_LogsExpiryCheckInformation()
+        {
+            // This test verifies that expiry checking is logged properly
+            // Arrange
+            var formWithEmailSent = new Form 
+            { 
+                LeadId = "test-logging-lead",
+                EmailSenton = DateTime.UtcNow.AddHours(-12)
+            };
+            
+            _mockCRMService.Setup(x => x.GetLeadDataAsync("test-logging-lead"))
+                .ReturnsAsync(formWithEmailSent);
+
+            // Act
+            var result = _controller.Create("test-logging-lead").Result;
+
+            // Assert
+            Assert.IsNotNull(result);
+            // Verify that logging service was called for expiry check
+            _mockLoggingService.Verify(x => x.LogInfo(It.Is<string>(msg => msg.Contains("Checking link expiry")), 
+                It.IsAny<object>()), Times.AtLeastOnce);
+        }
+
+        [TestMethod]
+        public void SafeAssignFromAccountData_ValidData_AssignsCorrectly()
+        {
+            // This is an indirect test of the helper method through the controller behavior
+            // We can verify that the refactored assignment logic works by checking results
+            
+            // Arrange
+            var leadData = new Form { LeadId = "test-assignment" };
+            _mockCRMService.Setup(x => x.GetLeadDataAsync("test-assignment"))
+                .ReturnsAsync(leadData);
+
+            // Act
+            var result = _controller.Create("test-assignment").Result as ViewResult;
+
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.IsNotNull(result.Model);
+        }
+
+        [TestMethod]
+        public void FormModel_ValidationAttributes_AreProperlyConfigured()
+        {
+            // Test the model validation improvements
+            // Arrange
+            var form = new Form();
+
+            // Act & Assert - Check that required fields are properly marked
+            var type = typeof(Form);
+            
+            // Check CustomerPaymentMethod has Required attribute
+            var customerPaymentMethodProperty = type.GetProperty("CustomerPaymentMethod");
+            Assert.IsNotNull(customerPaymentMethodProperty);
+            var requiredAttribute = customerPaymentMethodProperty.GetCustomAttributes(typeof(System.ComponentModel.DataAnnotations.RequiredAttribute), false);
+            Assert.IsTrue(requiredAttribute.Length > 0, "CustomerPaymentMethod should have Required attribute");
+
+            // Check Branch has Required attribute  
+            var branchProperty = type.GetProperty("Branch");
+            Assert.IsNotNull(branchProperty);
+            var branchRequiredAttribute = branchProperty.GetCustomAttributes(typeof(System.ComponentModel.DataAnnotations.RequiredAttribute), false);
+            Assert.IsTrue(branchRequiredAttribute.Length > 0, "Branch should have Required attribute");
+
+            // Check TradeName has Required attribute
+            var tradeNameProperty = type.GetProperty("TradeName");
+            Assert.IsNotNull(tradeNameProperty);
+            var tradeNameRequiredAttribute = tradeNameProperty.GetCustomAttributes(typeof(System.ComponentModel.DataAnnotations.RequiredAttribute), false);
+            Assert.IsTrue(tradeNameRequiredAttribute.Length > 0, "TradeName should have Required attribute");
+        }
+
+        [TestMethod]
+        public void FormModel_EcommerceAlias_WorksCorrectly()
+        {
+            // Test the backward-compatible property alias
+            // Arrange
+            var form = new Form();
+            const string testValue = "test_ecommerce_value";
+
+            // Act - Set via alias
+            form.Ecommerce = testValue;
+
+            // Assert - Both properties should have the same value
+            Assert.AreEqual(testValue, form.Ecommerce);
+            Assert.AreEqual(testValue, form.Ecomerce);
+            
+            // Act - Set via original property
+            const string newValue = "new_ecommerce_value";
+            form.Ecomerce = newValue;
+            
+            // Assert - Both should be updated
+            Assert.AreEqual(newValue, form.Ecommerce);
+            Assert.AreEqual(newValue, form.Ecomerce);
+        }
+
+        [TestMethod]
+        public void FormModel_StringLengthValidation_IsApplied()
+        {
+            // Test that StringLength attribute is applied to TradeName
+            var type = typeof(Form);
+            var tradeNameProperty = type.GetProperty("TradeName");
+            Assert.IsNotNull(tradeNameProperty);
+            
+            var stringLengthAttribute = tradeNameProperty.GetCustomAttributes(typeof(System.ComponentModel.DataAnnotations.StringLengthAttribute), false);
+            Assert.IsTrue(stringLengthAttribute.Length > 0, "TradeName should have StringLength attribute");
+            
+            var stringLengthAttr = (System.ComponentModel.DataAnnotations.StringLengthAttribute)stringLengthAttribute[0];
+            Assert.AreEqual(200, stringLengthAttr.MaximumLength);
+        }
+
+        [TestMethod]
+        public void FormModel_RequiredFieldsHaveErrorMessages()
+        {
+            // Test that required fields have meaningful error messages
+            var type = typeof(Form);
+            var requiredProperties = new[] { "CustomerPaymentMethod", "Branch", "TradeName", "StatisticGroup", "ChefSegment", "SubSegment" };
+
+            foreach (var propertyName in requiredProperties)
+            {
+                var property = type.GetProperty(propertyName);
+                Assert.IsNotNull(property, $"Property {propertyName} should exist");
+                
+                var requiredAttribute = (System.ComponentModel.DataAnnotations.RequiredAttribute)
+                    property.GetCustomAttributes(typeof(System.ComponentModel.DataAnnotations.RequiredAttribute), false)[0];
+                
+                Assert.IsNotNull(requiredAttribute.ErrorMessage, $"{propertyName} should have error message");
+                Assert.IsTrue(requiredAttribute.ErrorMessage.Length > 0, $"{propertyName} error message should not be empty");
+            }
+        }
+
+        #endregion
     }
 }

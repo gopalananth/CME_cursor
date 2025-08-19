@@ -40,11 +40,14 @@ namespace Chef_Middle_East_Form.Services
 
     public class CRMService : ICRMService
     {
-        private static readonly string ClientId = ConfigurationManager.AppSettings["CRMClientId"];
-        private static readonly string TenantId = ConfigurationManager.AppSettings["CRMTenantId"];
-        private static readonly string ClientSecret = ConfigurationManager.AppSettings["CRMClientSecret"];
-        private static readonly string CRMUrl = ConfigurationManager.AppSettings["CRMAppUrl"] + "/api/data/v9.2/accounts";
-        private static readonly string CRMAppUrl = ConfigurationManager.AppSettings["CRMAppUrl"];
+        // Use secure configuration service for enhanced security
+        private static readonly CRMConfiguration _crmConfig = SecureConfigurationService.GetCRMConfiguration();
+        
+        private static readonly string ClientId = _crmConfig.ClientId;
+        private static readonly string TenantId = _crmConfig.TenantId;
+        private static readonly string ClientSecret = _crmConfig.ClientSecret;
+        private static readonly string CRMUrl = _crmConfig.AppUrl + "/api/data/v9.2/accounts";
+        private static readonly string CRMAppUrl = _crmConfig.AppUrl;
 
         private async Task<string> GetAccessToken()
         {
@@ -299,6 +302,7 @@ namespace Chef_Middle_East_Form.Services
                                     }
                                 }
 
+                                // Fetch purchasing person details with proper error handling
                                 if (!string.IsNullOrEmpty(purchasingPersonId))
                                 {
                                     try
@@ -306,7 +310,7 @@ namespace Chef_Middle_East_Form.Services
                                         var purchasingPersonDetails = await GetContactDetailsByGuid(purchasingPersonId);
                                         if (purchasingPersonDetails != null)
                                         {
-                                            // Prefix properties with "purchasingPerson_".
+                                            // Prefix properties with "purchasingPerson_" for FormController compatibility
                                             foreach (var property in purchasingPersonDetails.Properties())
                                             {
                                                 accountData[$"purchasingPerson_{property.Name}"] = property.Value;
@@ -319,24 +323,7 @@ namespace Chef_Middle_East_Form.Services
                                     }
                                 }
 
-                                if (!string.IsNullOrEmpty(purchasingPersonId))
-                                {
-                                    try
-                                    {
-                                        var purchasingPersonDetails = await GetContactDetailsByGuid(purchasingPersonId);
-                                        if (purchasingPersonDetails != null)
-                                        {
-                                            foreach (var property in purchasingPersonDetails.Properties())
-                                            {
-                                                accountData[property.Name] = property.Value;
-                                            }
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        Console.WriteLine($"Error fetching purchasing person details: {ex.Message}");
-                                    }
-                                }
+                                // Note: Removed duplicate purchasing person fetching block that was here
                                 var bankAccountId = accountData["_nw_bankaccount_value"]?.ToString();
 
                                 if (!string.IsNullOrEmpty(bankAccountId))
@@ -468,20 +455,23 @@ namespace Chef_Middle_East_Form.Services
             if (string.IsNullOrEmpty(accessToken))
                 return null;
 
-            var client = new HttpClient();
-            client.DefaultRequestHeaders.Add("Authorization", "Bearer " + accessToken);
-
-            var response = await client.GetAsync(url);
-            if (response.IsSuccessStatusCode)
+            // Fix: Properly dispose HttpClient to prevent resource leaks
+            using (var client = new HttpClient())
             {
-                var content = await response.Content.ReadAsStringAsync();
-                var jsonResponse = JsonConvert.DeserializeObject<JObject>(content);
+                client.DefaultRequestHeaders.Add("Authorization", "Bearer " + accessToken);
 
-                // Return the appropriate field based on the entity
-                return jsonResponse[fieldToSelect]?.ToString();
+                var response = await client.GetAsync(url);
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    var jsonResponse = JsonConvert.DeserializeObject<JObject>(content);
+
+                    // Return the appropriate field based on the entity
+                    return jsonResponse[fieldToSelect]?.ToString();
+                }
+
+                return null; // If no name is found or request fails
             }
-
-            return null; // If no name is found or request fails
         }
 
         public async Task<JObject> GetUploadedFileName(string accountId, string attachmentId)
