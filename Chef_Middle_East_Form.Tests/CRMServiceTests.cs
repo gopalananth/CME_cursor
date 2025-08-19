@@ -24,7 +24,7 @@ namespace Chef_Middle_East_Form.Tests
         #region Lead Data Tests
 
         [TestMethod]
-        public async Task GetLeadDataAsync_ValidLeadId_ShouldReturnLeadData()
+        public async Task GetLeadData_ValidLeadId_ShouldReturnLeadData()
         {
             // Arrange
             var leadId = "test-lead-123";
@@ -32,65 +32,65 @@ namespace Chef_Middle_East_Form.Tests
             {
                 CompanyName = "Test Company",
                 Email = "test@company.com",
-                Phone = "1234567890"
+                MainPhone = "1234567890"
             };
 
-            _mockCRMService.Setup(x => x.GetLeadDataAsync(leadId))
+            _mockCRMService.Setup(x => x.GetLeadData(leadId))
                 .ReturnsAsync(expectedLeadData);
 
             // Act
-            var result = await _mockCRMService.Object.GetLeadDataAsync(leadId);
+            var result = await _mockCRMService.Object.GetLeadData(leadId);
 
             // Assert
             Assert.IsNotNull(result);
             Assert.AreEqual(expectedLeadData.CompanyName, result.CompanyName);
             Assert.AreEqual(expectedLeadData.Email, result.Email);
-            Assert.AreEqual(expectedLeadData.Phone, result.Phone);
+            Assert.AreEqual(expectedLeadData.MainPhone, result.MainPhone);
         }
 
         [TestMethod]
-        public async Task GetLeadDataAsync_InvalidLeadId_ShouldReturnNull()
+        public async Task GetLeadData_InvalidLeadId_ShouldReturnNull()
         {
             // Arrange
             var invalidLeadId = "invalid-lead-id";
 
-            _mockCRMService.Setup(x => x.GetLeadDataAsync(invalidLeadId))
+            _mockCRMService.Setup(x => x.GetLeadData(invalidLeadId))
                 .ReturnsAsync((Form)null);
 
             // Act
-            var result = await _mockCRMService.Object.GetLeadDataAsync(invalidLeadId);
+            var result = await _mockCRMService.Object.GetLeadData(invalidLeadId);
 
             // Assert
             Assert.IsNull(result);
         }
 
         [TestMethod]
-        public async Task GetLeadDataAsync_EmptyLeadId_ShouldReturnNull()
+        public async Task GetLeadData_EmptyLeadId_ShouldReturnNull()
         {
             // Arrange
             var emptyLeadId = "";
 
-            _mockCRMService.Setup(x => x.GetLeadDataAsync(emptyLeadId))
+            _mockCRMService.Setup(x => x.GetLeadData(emptyLeadId))
                 .ReturnsAsync((Form)null);
 
             // Act
-            var result = await _mockCRMService.Object.GetLeadDataAsync(emptyLeadId);
+            var result = await _mockCRMService.Object.GetLeadData(emptyLeadId);
 
             // Assert
             Assert.IsNull(result);
         }
 
         [TestMethod]
-        public async Task GetLeadDataAsync_NullLeadId_ShouldReturnNull()
+        public async Task GetLeadData_NullLeadId_ShouldReturnNull()
         {
             // Arrange
             string nullLeadId = null;
 
-            _mockCRMService.Setup(x => x.GetLeadDataAsync(nullLeadId))
+            _mockCRMService.Setup(x => x.GetLeadData(nullLeadId))
                 .ReturnsAsync((Form)null);
 
             // Act
-            var result = await _mockCRMService.Object.GetLeadDataAsync(nullLeadId);
+            var result = await _mockCRMService.Object.GetLeadData(nullLeadId);
 
             // Assert
             Assert.IsNull(result);
@@ -101,7 +101,7 @@ namespace Chef_Middle_East_Form.Tests
         #region Account Data Tests
 
         [TestMethod]
-        public async Task GetAccountDataAsync_ValidAccountId_ShouldReturnAccountData()
+        public async Task GetAccountData_ValidAccountId_ShouldReturnAccountData()
         {
             // Arrange
             var accountId = "test-account-123";
@@ -113,11 +113,11 @@ namespace Chef_Middle_East_Form.Tests
                 'address1_country': 'Test Country'
             }");
 
-            _mockCRMService.Setup(x => x.GetAccountDataAsync(accountId))
+            _mockCRMService.Setup(x => x.GetAccountData(accountId))
                 .ReturnsAsync(expectedAccountData);
 
             // Act
-            var result = await _mockCRMService.Object.GetAccountDataAsync(accountId);
+            var result = await _mockCRMService.Object.GetAccountData(accountId);
 
             // Assert
             Assert.IsNotNull(result);
@@ -127,32 +127,32 @@ namespace Chef_Middle_East_Form.Tests
         }
 
         [TestMethod]
-        public async Task GetAccountDataAsync_InvalidAccountId_ShouldReturnNull()
+        public async Task GetAccountData_InvalidAccountId_ShouldReturnNull()
         {
             // Arrange
             var invalidAccountId = "invalid-account-id";
 
-            _mockCRMService.Setup(x => x.GetAccountDataAsync(invalidAccountId))
+            _mockCRMService.Setup(x => x.GetAccountData(invalidAccountId))
                 .ReturnsAsync((JObject)null);
 
             // Act
-            var result = await _mockCRMService.Object.GetAccountDataAsync(invalidAccountId);
+            var result = await _mockCRMService.Object.GetAccountData(invalidAccountId);
 
             // Assert
             Assert.IsNull(result);
         }
 
         [TestMethod]
-        public async Task GetAccountDataAsync_EmptyAccountId_ShouldReturnNull()
+        public async Task GetAccountData_EmptyAccountId_ShouldReturnNull()
         {
             // Arrange
             var emptyAccountId = "";
 
-            _mockCRMService.Setup(x => x.GetAccountDataAsync(emptyAccountId))
+            _mockCRMService.Setup(x => x.GetAccountData(emptyAccountId))
                 .ReturnsAsync((JObject)null);
 
             // Act
-            var result = await _mockCRMService.Object.GetAccountDataAsync(emptyAccountId);
+            var result = await _mockCRMService.Object.GetAccountData(emptyAccountId);
 
             // Assert
             Assert.IsNull(result);
@@ -163,7 +163,7 @@ namespace Chef_Middle_East_Form.Tests
         #region Account Update Tests
 
         [TestMethod]
-        public async Task UpdateAccountAsync_ValidData_ShouldReturnTrue()
+        public async Task UpdateAccount_ValidData_ShouldReturnTrue()
         {
             // Arrange
             var accountId = "test-account-123";
@@ -174,45 +174,45 @@ namespace Chef_Middle_East_Form.Tests
                 Phone = "0987654321"
             };
 
-            _mockCRMService.Setup(x => x.UpdateAccountAsync(accountId, formData))
+            _mockCRMService.Setup(x => x.UpdateAccount(accountId, formData))
                 .ReturnsAsync(true);
 
             // Act
-            var result = await _mockCRMService.Object.UpdateAccountAsync(accountId, formData);
+            var result = await _mockCRMService.Object.UpdateAccount(accountId, formData);
 
             // Assert
             Assert.IsTrue(result);
         }
 
         [TestMethod]
-        public async Task UpdateAccountAsync_InvalidData_ShouldReturnFalse()
+        public async Task UpdateAccount_InvalidData_ShouldReturnFalse()
         {
             // Arrange
             var accountId = "test-account-123";
             var invalidFormData = new Form(); // Empty form
 
-            _mockCRMService.Setup(x => x.UpdateAccountAsync(accountId, invalidFormData))
+            _mockCRMService.Setup(x => x.UpdateAccount(accountId, invalidFormData))
                 .ReturnsAsync(false);
 
             // Act
-            var result = await _mockCRMService.Object.UpdateAccountAsync(accountId, invalidFormData);
+            var result = await _mockCRMService.Object.UpdateAccount(accountId, invalidFormData);
 
             // Assert
             Assert.IsFalse(result);
         }
 
         [TestMethod]
-        public async Task UpdateAccountAsync_NullFormData_ShouldReturnFalse()
+        public async Task UpdateAccount_NullFormData_ShouldReturnFalse()
         {
             // Arrange
             var accountId = "test-account-123";
             Form nullFormData = null;
 
-            _mockCRMService.Setup(x => x.UpdateAccountAsync(accountId, nullFormData))
+            _mockCRMService.Setup(x => x.UpdateAccount(accountId, nullFormData))
                 .ReturnsAsync(false);
 
             // Act
-            var result = await _mockCRMService.Object.UpdateAccountAsync(accountId, nullFormData);
+            var result = await _mockCRMService.Object.UpdateAccount(accountId, nullFormData);
 
             // Assert
             Assert.IsFalse(result);
@@ -223,7 +223,7 @@ namespace Chef_Middle_East_Form.Tests
         #region Account Creation Tests
 
         [TestMethod]
-        public async Task CreateAccountAsync_ValidData_ShouldReturnAccountId()
+        public async Task CreateAccount_ValidData_ShouldReturnAccountId()
         {
             // Arrange
             var formData = new Form
@@ -234,11 +234,11 @@ namespace Chef_Middle_East_Form.Tests
             };
             var expectedAccountId = "new-account-123";
 
-            _mockCRMService.Setup(x => x.CreateAccountAsync(formData))
+            _mockCRMService.Setup(x => x.CreateAccount(formData))
                 .ReturnsAsync(expectedAccountId);
 
             // Act
-            var result = await _mockCRMService.Object.CreateAccountAsync(formData);
+            var result = await _mockCRMService.Object.CreateAccount(formData);
 
             // Assert
             Assert.IsNotNull(result);
@@ -246,32 +246,32 @@ namespace Chef_Middle_East_Form.Tests
         }
 
         [TestMethod]
-        public async Task CreateAccountAsync_InvalidData_ShouldReturnNull()
+        public async Task CreateAccount_InvalidData_ShouldReturnNull()
         {
             // Arrange
             var invalidFormData = new Form(); // Empty form
 
-            _mockCRMService.Setup(x => x.CreateAccountAsync(invalidFormData))
+            _mockCRMService.Setup(x => x.CreateAccount(invalidFormData))
                 .ReturnsAsync((string)null);
 
             // Act
-            var result = await _mockCRMService.Object.CreateAccountAsync(invalidFormData);
+            var result = await _mockCRMService.Object.CreateAccount(invalidFormData);
 
             // Assert
             Assert.IsNull(result);
         }
 
         [TestMethod]
-        public async Task CreateAccountAsync_NullFormData_ShouldReturnNull()
+        public async Task CreateAccount_NullFormData_ShouldReturnNull()
         {
             // Arrange
             Form nullFormData = null;
 
-            _mockCRMService.Setup(x => x.CreateAccountAsync(nullFormData))
+            _mockCRMService.Setup(x => x.CreateAccount(nullFormData))
                 .ReturnsAsync((string)null);
 
             // Act
-            var result = await _mockCRMService.Object.CreateAccountAsync(nullFormData);
+            var result = await _mockCRMService.Object.CreateAccount(nullFormData);
 
             // Assert
             Assert.IsNull(result);
@@ -283,48 +283,48 @@ namespace Chef_Middle_East_Form.Tests
 
         [TestMethod]
         [ExpectedException(typeof(Exception))]
-        public async Task GetLeadDataAsync_ServiceException_ShouldThrowException()
+        public async Task GetLeadData_ServiceException_ShouldThrowException()
         {
             // Arrange
             var leadId = "test-lead-123";
 
-            _mockCRMService.Setup(x => x.GetLeadDataAsync(leadId))
+            _mockCRMService.Setup(x => x.GetLeadData(leadId))
                 .ThrowsAsync(new Exception("CRM service unavailable"));
 
             // Act
-            await _mockCRMService.Object.GetLeadDataAsync(leadId);
+            await _mockCRMService.Object.GetLeadData(leadId);
 
             // Assert - Exception expected
         }
 
         [TestMethod]
         [ExpectedException(typeof(ArgumentNullException))]
-        public async Task GetLeadDataAsync_NullLeadId_ShouldThrowArgumentNullException()
+        public async Task GetLeadData_NullLeadId_ShouldThrowArgumentNullException()
         {
             // Arrange
             string nullLeadId = null;
 
-            _mockCRMService.Setup(x => x.GetLeadDataAsync(nullLeadId))
+            _mockCRMService.Setup(x => x.GetLeadData(nullLeadId))
                 .ThrowsAsync(new ArgumentNullException("leadId"));
 
             // Act
-            await _mockCRMService.Object.GetLeadDataAsync(nullLeadId);
+            await _mockCRMService.Object.GetLeadData(nullLeadId);
 
             // Assert - Exception expected
         }
 
         [TestMethod]
         [ExpectedException(typeof(TimeoutException))]
-        public async Task GetAccountDataAsync_Timeout_ShouldThrowTimeoutException()
+        public async Task GetAccountData_Timeout_ShouldThrowTimeoutException()
         {
             // Arrange
             var accountId = "test-account-123";
 
-            _mockCRMService.Setup(x => x.GetAccountDataAsync(accountId))
+            _mockCRMService.Setup(x => x.GetAccountData(accountId))
                 .ThrowsAsync(new TimeoutException("Request timed out"));
 
             // Act
-            await _mockCRMService.Object.GetAccountDataAsync(accountId);
+            await _mockCRMService.Object.GetAccountData(accountId);
 
             // Assert - Exception expected
         }
@@ -334,7 +334,7 @@ namespace Chef_Middle_East_Form.Tests
         #region Data Validation Tests
 
         [TestMethod]
-        public async Task GetLeadDataAsync_LeadDataWithNullFields_ShouldHandleGracefully()
+        public async Task GetLeadData_LeadDataWithNullFields_ShouldHandleGracefully()
         {
             // Arrange
             var leadId = "test-lead-123";
@@ -345,11 +345,11 @@ namespace Chef_Middle_East_Form.Tests
                 Phone = null
             };
 
-            _mockCRMService.Setup(x => x.GetLeadDataAsync(leadId))
+            _mockCRMService.Setup(x => x.GetLeadData(leadId))
                 .ReturnsAsync(leadDataWithNulls);
 
             // Act
-            var result = await _mockCRMService.Object.GetLeadDataAsync(leadId);
+            var result = await _mockCRMService.Object.GetLeadData(leadId);
 
             // Assert
             Assert.IsNotNull(result);
@@ -359,7 +359,7 @@ namespace Chef_Middle_East_Form.Tests
         }
 
         [TestMethod]
-        public async Task GetAccountDataAsync_AccountDataWithMissingFields_ShouldHandleGracefully()
+        public async Task GetAccountData_AccountDataWithMissingFields_ShouldHandleGracefully()
         {
             // Arrange
             var accountId = "test-account-123";
@@ -368,11 +368,11 @@ namespace Chef_Middle_East_Form.Tests
                 // Missing email and phone fields
             }");
 
-            _mockCRMService.Setup(x => x.GetAccountDataAsync(accountId))
+            _mockCRMService.Setup(x => x.GetAccountData(accountId))
                 .ReturnsAsync(accountDataWithMissingFields);
 
             // Act
-            var result = await _mockCRMService.Object.GetAccountDataAsync(accountId);
+            var result = await _mockCRMService.Object.GetAccountData(accountId);
 
             // Assert
             Assert.IsNotNull(result);

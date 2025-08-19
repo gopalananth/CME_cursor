@@ -10,7 +10,7 @@ namespace Chef_Middle_East_Form.Tests
     [TestClass]
     public class FileUploadServiceTests
     {
-        private FileUploadService _fileUploadService;
+        private IFileUploadService _fileUploadService;
         private Mock<HttpContextBase> _mockHttpContext;
         private Mock<HttpServerUtilityBase> _mockServer;
 

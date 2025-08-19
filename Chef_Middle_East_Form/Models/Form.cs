@@ -10,7 +10,7 @@ namespace Chef_Middle_East_Form.Models
         public string Ecomerce { get; set; }
         public string Reason { get; set; }
         public string InventorySystem { get; set; }
-        public DateTime EmailSenton { get; set; }
+        public DateTime? EmailSenton { get; set; }
 
         // Company Information Section
         //[Required]
@@ -43,6 +43,13 @@ namespace Chef_Middle_East_Form.Models
         [Display(Name = "Mobile Phone")]
         [Phone]
         public string MainPhone { get; set; } // Optional
+
+        // Additional property for compatibility with tests
+        public string Phone 
+        { 
+            get { return MainPhone; } 
+            set { MainPhone = value; } 
+        }
 
         [Display(Name = "Email")]
         [EmailAddress]

@@ -1358,29 +1358,41 @@ namespace Chef_Middle_East_Form.Controllers
             switch (section)
             {
                 case "registered":
-                    return fieldType switch
+                    switch (fieldType)
                     {
-                        "country" => !string.IsNullOrWhiteSpace(form["RegisteredCountry"]) ? form["RegisteredCountry"] : form["DeliveryCountry"],
-                        "city" => !string.IsNullOrWhiteSpace(form["RegisteredCity"]) ? form["RegisteredCity"] : form["DeliveryCity"],
-                        "street" => !string.IsNullOrWhiteSpace(form["RegisteredStreet"]) ? form["RegisteredStreet"] : form["DeliveryStreet"],
-                        _ => null
-                    };
+                        case "country":
+                            return !string.IsNullOrWhiteSpace(form["RegisteredCountry"]) ? form["RegisteredCountry"] : form["DeliveryCountry"];
+                        case "city":
+                            return !string.IsNullOrWhiteSpace(form["RegisteredCity"]) ? form["RegisteredCity"] : form["DeliveryCity"];
+                        case "street":
+                            return !string.IsNullOrWhiteSpace(form["RegisteredStreet"]) ? form["RegisteredStreet"] : form["DeliveryStreet"];
+                        default:
+                            return null;
+                    }
                 case "corporate":
-                    return fieldType switch
+                    switch (fieldType)
                     {
-                        "country" => form["CorporateCountry"],
-                        "city" => form["CorporateCity"],
-                        "street" => form["CorporateStreet"],
-                        _ => null
-                    };
+                        case "country":
+                            return form["CorporateCountry"];
+                        case "city":
+                            return form["CorporateCity"];
+                        case "street":
+                            return form["CorporateStreet"];
+                        default:
+                            return null;
+                    }
                 case "delivery":
-                    return fieldType switch
+                    switch (fieldType)
                     {
-                        "country" => form["DeliveryCountry"],
-                        "city" => form["DeliveryCity"],
-                        "street" => form["DeliveryStreet"],
-                        _ => null
-                    };
+                        case "country":
+                            return form["DeliveryCountry"];
+                        case "city":
+                            return form["DeliveryCity"];
+                        case "street":
+                            return form["DeliveryStreet"];
+                        default:
+                            return null;
+                    }
                 default:
                     return null;
             }

@@ -7,23 +7,30 @@ namespace Chef_Middle_East_Form.Services
 {
     public interface ICRMService
     {
-        Task<bool> CreateAccountAsync(Form form);
-        //Task<bool> CreateAccountInCRM(Form form);
+        // Account creation methods
+        Task<string> CreateAccountAsync(Form formData);
         Task<bool> CreateAccountInCRM(
-        Form model,
-        byte[] vatFileData, string vatFileName,
-        byte[] poaData, string poaFileName,
-        byte[] Passport, string PassportFileName,
-        byte[] Visa, string VisaFileName,
-        byte[] EID, string EIDFileName,
-        byte[] tradeLicenseData, string tradeLicenseName,
-        byte[] accountOpeningFileData, string accountOpeningFileName,
-        byte[] chequefiledata, string chequefilename,
-        byte[] EstablishmentCardFileData, string EstablishmentCardFileName);
+            Form model,
+            byte[] vatFileData, string vatFileName,
+            byte[] poaData, string poaFileName,
+            byte[] Passport, string PassportFileName,
+            byte[] Visa, string VisaFileName,
+            byte[] EID, string EIDFileName,
+            byte[] tradeLicenseData, string tradeLicenseName,
+            byte[] accountOpeningFileData, string accountOpeningFileName,
+            byte[] chequefiledata, string chequefilename,
+            byte[] EstablishmentCardFileData, string EstablishmentCardFileName);
+            
+        // Lead data methods
         Task<Form> GetLeadData(string leadId);
+        Task<Form> GetLeadDataAsync(string leadId);
 
-        string GetUploadedFileNameByService(string accountId, string fileattachmentid);
-
+        // Account data methods
+        Task<JObject> GetAccountByLeadId(string leadId);
+        Task<JObject> GetAccountDataAsync(string accountId);
+        
+        // Update methods
+        Task<bool> UpdateAccountAsync(string accountId, Form formData);
         Task<bool> UpdateAccountBasedOnLeadId(
             string leadId,
             Form model,
@@ -36,7 +43,9 @@ namespace Chef_Middle_East_Form.Services
             byte[] accountOpeningFileData, string accountOpeningFileName,
             byte[] chequeFileData, string chequeFileName,
             byte[] EstablishmentCardFileData, string EstablishmentCardFileName, bool canUpdateLeadStatus);
-        Task<JObject> GetAccountByLeadId(string leadId);
+            
+        // Utility methods
+        string GetUploadedFileNameByService(string accountId, string fileattachmentid);
 
 
     }

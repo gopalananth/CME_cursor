@@ -32,7 +32,7 @@ namespace Chef_Middle_East_Form.Tests
             _mockHttpContext.Setup(x => x.Server).Returns(_mockServer.Object);
             _mockHttpContext.Setup(x => x.Session).Returns(new Mock<HttpSessionStateBase>().Object);
 
-            _controller = new FormController(_mockCRMService.Object, _mockFileUploadService.Object)
+            _controller = new FormController(_mockCRMService.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -123,7 +123,7 @@ namespace Chef_Middle_East_Form.Tests
         {
             // Arrange
             var leadData = new Form { EmailSenton = null };
-            _mockCRMService.Setup(x => x.GetLeadDataAsync(It.IsAny<string>()))
+            _mockCRMService.Setup(x => x.GetLeadData(It.IsAny<string>()))
                 .ReturnsAsync(leadData);
 
             // Act & Assert - Should not throw
@@ -143,7 +143,7 @@ namespace Chef_Middle_East_Form.Tests
         {
             // Arrange
             var leadData = new Form { EmailSenton = DateTime.UtcNow.AddHours(-49) }; // Expired
-            _mockCRMService.Setup(x => x.GetLeadDataAsync(It.IsAny<string>()))
+            _mockCRMService.Setup(x => x.GetLeadData(It.IsAny<string>()))
                 .ReturnsAsync(leadData);
 
             // Act
@@ -209,7 +209,7 @@ namespace Chef_Middle_East_Form.Tests
         public void ValidateCRMConfiguration_ValidConfiguration_ShouldNotThrowException()
         {
             // Arrange
-            _mockCRMService.Setup(x => x.GetLeadDataAsync(It.IsAny<string>()))
+            _mockCRMService.Setup(x => x.GetLeadData(It.IsAny<string>()))
                 .ReturnsAsync(new Form());
 
             // Act & Assert - Should not throw
@@ -275,7 +275,7 @@ namespace Chef_Middle_East_Form.Tests
             {
                 CompanyName = "Test Company",
                 Email = "test@company.com",
-                Phone = "1234567890"
+                MainPhone = "1234567890"
             };
 
             // Act
@@ -293,7 +293,7 @@ namespace Chef_Middle_East_Form.Tests
             {
                 CompanyName = "", // Invalid - empty
                 Email = "invalid-email", // Invalid email format
-                Phone = "" // Invalid - empty
+                MainPhone = "" // Invalid - empty
             };
 
             // Act
