@@ -4,6 +4,7 @@ using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Threading.Tasks;
 using System.Web;
 using Microsoft.PowerPlatform.Dataverse.Client;
 
@@ -20,7 +21,15 @@ namespace Chef_Middle_East_Form.Services
             "image/jpeg", 
             "image/jpg" 
         };
-        private const int MaxFileSizeBytes = 10 * 1024 * 1024; // 10MB
+        
+        private readonly int _maxFileSizeBytes;
+
+        public FileUploadService()
+        {
+            // Make max file size configurable, default to 10MB
+            var maxFileSizeMB = int.Parse(ConfigurationManager.AppSettings["MaxFileSizeMB"] ?? "10");
+            _maxFileSizeBytes = maxFileSizeMB * 1024 * 1024;
+        }
 
         public FileValidationResult ValidateFile(HttpPostedFileBase file)
         {
@@ -30,8 +39,8 @@ namespace Chef_Middle_East_Form.Services
             if (file.ContentLength == 0)
                 return new FileValidationResult { IsValid = false, ErrorMessage = "The uploaded file is empty." };
 
-            if (file.ContentLength > MaxFileSizeBytes)
-                return new FileValidationResult { IsValid = false, ErrorMessage = "File size exceeds the maximum limit of 10MB." };
+            if (file.ContentLength > _maxFileSizeBytes)
+                return new FileValidationResult { IsValid = false, ErrorMessage = $"File size exceeds the maximum limit of {_maxFileSizeBytes / (1024 * 1024)}MB." };
 
             if (string.IsNullOrWhiteSpace(file.FileName))
                 return new FileValidationResult { IsValid = false, ErrorMessage = "Invalid filename." };
@@ -60,6 +69,26 @@ namespace Chef_Middle_East_Form.Services
             {
                 return binaryReader.ReadBytes(file.ContentLength);
             }
+        }
+
+        public async Task<byte[]> SaveFileAsync(HttpPostedFileBase file, string uploadPath)
+        {
+            var validationResult = ValidateFile(file);
+            if (!validationResult.IsValid)
+                throw new ArgumentException(validationResult.ErrorMessage);
+
+            return await Task.Run(() =>
+            {
+                using (var binaryReader = new BinaryReader(file.InputStream))
+                {
+                    return binaryReader.ReadBytes(file.ContentLength);
+                }
+            });
+        }
+
+        public int GetMaxFileSize()
+        {
+            return _maxFileSizeBytes;
         }
 
         public static void UploadFileToCrm()

@@ -2,5 +2,6 @@
     "editor.fontSize": 16,
     "debug.console.fontSize": 16,
     "scm.inputFontSize": 15,
-    "terminal.integrated.fontSize": 16
+    "terminal.integrated.fontSize": 16,
+    "dotnet.preferCSharpExtension": true
 }

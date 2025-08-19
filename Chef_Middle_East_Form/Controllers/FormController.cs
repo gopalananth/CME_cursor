@@ -31,10 +31,14 @@ namespace Chef_Middle_East_Form.Controllers
     public class FormController : Controller
     {
         private readonly ICRMService _crmService;
+        private readonly IFileUploadService _fileUploadService;
+        private readonly ILoggingService _loggingService;
 
-        public FormController(ICRMService crmService)
+        public FormController(ICRMService crmService, IFileUploadService fileUploadService, ILoggingService loggingService)
         {
-            _crmService = crmService;
+            _crmService = crmService ?? throw new ArgumentNullException(nameof(crmService));
+            _fileUploadService = fileUploadService ?? throw new ArgumentNullException(nameof(fileUploadService));
+            _loggingService = loggingService ?? throw new ArgumentNullException(nameof(loggingService));
         }
 
 
@@ -91,9 +95,12 @@ namespace Chef_Middle_East_Form.Controllers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.WriteLine($"Error in Form/Create: {ex.Message}");
-                System.Diagnostics.Trace.WriteLine($"Stack trace: {ex.StackTrace}");
-                return View("Error");
+                var errorId = _loggingService.LogException(ex, new { leadId, action = "Form/Create" });
+                ViewBag.ErrorId = errorId;
+                ViewBag.LeadId = leadId;
+                
+                var showDetailedErrors = bool.Parse(ConfigurationManager.AppSettings["ShowDetailedErrors"] ?? "false");
+                return showDetailedErrors ? View("Error") : View("UserFriendlyError");
             }
         }
 

@@ -84,6 +84,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FormControllerTests.cs" />
+    <Compile Include="LoggingServiceTests.cs" />
     <Compile Include="FileUploadServiceTests.cs" />
     <Compile Include="CRMServiceTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

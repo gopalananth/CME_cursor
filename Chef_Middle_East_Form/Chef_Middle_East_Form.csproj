@@ -396,6 +396,9 @@
     <Compile Include="Services\CRMService.cs" />
     <Compile Include="Services\FileUploadService.cs" />
     <Compile Include="Services\ICRMService.cs" />
+    <Compile Include="Services\IFileUploadService.cs" />
+    <Compile Include="Services\ILoggingService.cs" />
+    <Compile Include="Services\LoggingService.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Content\bootstrap-theme.css" />
@@ -442,6 +445,7 @@
     <Content Include="Views\Web.config" />
     <Content Include="Views\_ViewStart.cshtml" />
     <Content Include="Views\Shared\Error.cshtml" />
+    <Content Include="Views\Shared\UserFriendlyError.cshtml" />
     <Content Include="Views\Shared\_Layout.cshtml" />
     <Content Include="Views\Home\About.cshtml" />
     <Content Include="Views\Home\Contact.cshtml" />

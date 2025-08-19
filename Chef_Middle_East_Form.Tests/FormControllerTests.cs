@@ -18,6 +18,7 @@ namespace Chef_Middle_East_Form.Tests
         private FormController _controller;
         private Mock<ICRMService> _mockCRMService;
         private Mock<IFileUploadService> _mockFileUploadService;
+        private Mock<ILoggingService> _mockLoggingService;
         private Mock<HttpContextBase> _mockHttpContext;
         private Mock<HttpServerUtilityBase> _mockServer;
 
@@ -26,13 +27,14 @@ namespace Chef_Middle_East_Form.Tests
         {
             _mockCRMService = new Mock<ICRMService>();
             _mockFileUploadService = new Mock<IFileUploadService>();
+            _mockLoggingService = new Mock<ILoggingService>();
             _mockHttpContext = new Mock<HttpContextBase>();
             _mockServer = new Mock<HttpServerUtilityBase>();
 
             _mockHttpContext.Setup(x => x.Server).Returns(_mockServer.Object);
             _mockHttpContext.Setup(x => x.Session).Returns(new Mock<HttpSessionStateBase>().Object);
 
-            _controller = new FormController(_mockCRMService.Object)
+            _controller = new FormController(_mockCRMService.Object, _mockFileUploadService.Object, _mockLoggingService.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -350,6 +352,94 @@ namespace Chef_Middle_East_Form.Tests
             var method = typeof(FormController).GetMethod("ValidateFormData", 
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             return (bool)method.Invoke(_controller, new object[] { form });
+        }
+
+        #endregion
+
+        #region Error Handling and Logging Tests
+
+        [TestMethod]
+        public async Task Create_ExceptionThrown_ShouldLogErrorAndReturnUserFriendlyError()
+        {
+            // Arrange
+            var leadId = "test-lead-123";
+            var errorId = "ERR12345";
+            
+            _mockCRMService.Setup(x => x.GetLeadDataAsync(leadId))
+                .ThrowsAsync(new Exception("Test exception"));
+            
+            _mockLoggingService.Setup(x => x.LogException(It.IsAny<Exception>(), It.IsAny<object>()))
+                .Returns(errorId);
+
+            // Act
+            var result = await _controller.Create(leadId) as ViewResult;
+
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual("UserFriendlyError", result.ViewName);
+            Assert.AreEqual(errorId, result.ViewBag.ErrorId);
+            Assert.AreEqual(leadId, result.ViewBag.LeadId);
+            
+            _mockLoggingService.Verify(x => x.LogException(It.IsAny<Exception>(), 
+                It.Is<object>(o => o.ToString().Contains(leadId))), Times.Once);
+        }
+
+        [TestMethod]
+        public async Task Create_ExceptionThrownWithDetailedErrorsEnabled_ShouldReturnDetailedError()
+        {
+            // Arrange
+            var leadId = "test-lead-123";
+            var errorId = "ERR12345";
+            
+            // Mock configuration to enable detailed errors
+            System.Configuration.ConfigurationManager.AppSettings["ShowDetailedErrors"] = "true";
+            
+            _mockCRMService.Setup(x => x.GetLeadDataAsync(leadId))
+                .ThrowsAsync(new Exception("Test exception"));
+            
+            _mockLoggingService.Setup(x => x.LogException(It.IsAny<Exception>(), It.IsAny<object>()))
+                .Returns(errorId);
+
+            // Act
+            var result = await _controller.Create(leadId) as ViewResult;
+
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual("Error", result.ViewName);
+        }
+
+        [TestMethod]
+        public void Constructor_NullCRMService_ShouldThrowArgumentNullException()
+        {
+            // Act & Assert
+            Assert.ThrowsException<ArgumentNullException>(() => 
+                new FormController(null, _mockFileUploadService.Object, _mockLoggingService.Object));
+        }
+
+        [TestMethod]
+        public void Constructor_NullFileUploadService_ShouldThrowArgumentNullException()
+        {
+            // Act & Assert
+            Assert.ThrowsException<ArgumentNullException>(() => 
+                new FormController(_mockCRMService.Object, null, _mockLoggingService.Object));
+        }
+
+        [TestMethod]
+        public void Constructor_NullLoggingService_ShouldThrowArgumentNullException()
+        {
+            // Act & Assert
+            Assert.ThrowsException<ArgumentNullException>(() => 
+                new FormController(_mockCRMService.Object, _mockFileUploadService.Object, null));
+        }
+
+        [TestMethod]
+        public void Constructor_AllValidParameters_ShouldCreateController()
+        {
+            // Act
+            var controller = new FormController(_mockCRMService.Object, _mockFileUploadService.Object, _mockLoggingService.Object);
+
+            // Assert
+            Assert.IsNotNull(controller);
         }
 
         #endregion

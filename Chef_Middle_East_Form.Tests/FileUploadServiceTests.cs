@@ -310,5 +310,112 @@ namespace Chef_Middle_East_Form.Tests
         }
 
         #endregion
+
+        #region New Async and Configuration Tests
+
+        [TestMethod]
+        public void GetMaxFileSize_ShouldReturnConfiguredValue()
+        {
+            // Act
+            var maxSize = _fileUploadService.GetMaxFileSize();
+
+            // Assert
+            Assert.IsTrue(maxSize > 0, "Max file size should be greater than 0");
+            // Default should be 10MB (10 * 1024 * 1024 bytes)
+            Assert.AreEqual(10 * 1024 * 1024, maxSize);
+        }
+
+        [TestMethod]
+        public async Task SaveFileAsync_ValidFile_ShouldReturnByteArray()
+        {
+            // Arrange
+            var testData = new byte[] { 1, 2, 3, 4, 5 };
+            var mockFile = CreateMockFileWithData("test.pdf", "application/pdf", testData);
+
+            // Act
+            var result = await _fileUploadService.SaveFileAsync(mockFile.Object, "test-path");
+
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual(testData.Length, result.Length);
+            CollectionAssert.AreEqual(testData, result);
+        }
+
+        [TestMethod]
+        public async Task SaveFileAsync_InvalidFile_ShouldThrowException()
+        {
+            // Arrange
+            var mockFile = CreateMockFile("test.exe", "application/exe", 1024);
+
+            // Act & Assert
+            await Assert.ThrowsExceptionAsync<ArgumentException>(() => 
+                _fileUploadService.SaveFileAsync(mockFile.Object, "test-path"));
+        }
+
+        [TestMethod]
+        public async Task SaveFileAsync_NullFile_ShouldThrowException()
+        {
+            // Act & Assert
+            await Assert.ThrowsExceptionAsync<ArgumentException>(() => 
+                _fileUploadService.SaveFileAsync(null, "test-path"));
+        }
+
+        [TestMethod]
+        public async Task SaveFileAsync_FileTooLarge_ShouldThrowException()
+        {
+            // Arrange
+            var largeSize = 15 * 1024 * 1024; // 15MB (larger than default 10MB limit)
+            var mockFile = CreateMockFile("large.pdf", "application/pdf", largeSize);
+
+            // Act & Assert
+            await Assert.ThrowsExceptionAsync<ArgumentException>(() => 
+                _fileUploadService.SaveFileAsync(mockFile.Object, "test-path"));
+        }
+
+        [TestMethod]
+        public void ValidateFile_FileAtMaxSizeLimit_ShouldReturnTrue()
+        {
+            // Arrange
+            var maxSize = _fileUploadService.GetMaxFileSize();
+            var mockFile = CreateMockFile("atmax.pdf", "application/pdf", maxSize);
+
+            // Act
+            var result = _fileUploadService.ValidateFile(mockFile.Object);
+
+            // Assert
+            Assert.IsTrue(result.IsValid);
+            Assert.IsNull(result.ErrorMessage);
+        }
+
+        [TestMethod]
+        public void ValidateFile_FileOverMaxSizeLimit_ShouldReturnFalse()
+        {
+            // Arrange
+            var maxSize = _fileUploadService.GetMaxFileSize();
+            var mockFile = CreateMockFile("overlimit.pdf", "application/pdf", maxSize + 1);
+
+            // Act
+            var result = _fileUploadService.ValidateFile(mockFile.Object);
+
+            // Assert
+            Assert.IsFalse(result.IsValid);
+            Assert.IsNotNull(result.ErrorMessage);
+            Assert.IsTrue(result.ErrorMessage.Contains("exceeds"));
+        }
+
+        private Mock<HttpPostedFileBase> CreateMockFileWithData(string fileName, string contentType, byte[] data)
+        {
+            var mockFile = new Mock<HttpPostedFileBase>();
+            mockFile.Setup(f => f.FileName).Returns(fileName);
+            mockFile.Setup(f => f.ContentType).Returns(contentType);
+            mockFile.Setup(f => f.ContentLength).Returns(data.Length);
+            
+            var stream = new MemoryStream(data);
+            mockFile.Setup(f => f.InputStream).Returns(stream);
+            
+            return mockFile;
+        }
+
+        #endregion
     }
 }
